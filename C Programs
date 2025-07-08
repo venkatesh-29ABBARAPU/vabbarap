@@ -1,0 +1,583 @@
+c_programs:
+====================================================================================
+1)Insert a node at the beginning of the list?
+2)Insert a node at the end of the list?
+3)Delete a node if the node data element is given?
+4)Delete the entire list?
+5)Reverse the linked list?
+6)Remove Nth node from end of the Linked List
+7)Find Middle of the Linked List
+8)Delete middle node of linked list
+9)Detect Loop or Cycle in Linked List
+10)Rotate a Linked List by K
+11)Remove every k-th node of the linked list
+12)Delete N nodes after M nodes of a linked list
+13)Pairwise Swap Elements of a given Linked List
+14)Segregate even and odd nodes in a Linked List
+15)Find the sum of last n nodes of the given Linked List
+16)Merge two sorted linked lists
+17)Swap nodes in a linked list without swapping data
+18)Intersection point of two Linked Lists
+19)Clone linked list with next and random pointer
+
+
+
+
+
+============================================================================
+
+1. What’s wrong in this snippet?
+
+int* getValue() {
+ int x = 10;
+ return &x; // invalid
+}
+
+Answer:
+The function returns the address of a local variable.
+Since 'x' is created on the stack, it gets destroyed when the function ends.
+Returning its address results in a dangling pointer, which is undefined behavior.
+
+-------------------------
+
+2. What kind of error does this code cause?
+
+int* ptr;
+*ptr = 100; unsafe
+
+Answer:
+The pointer 'ptr' is not initialized, so it points to an unknown memory location.
+Trying to write to that location will likely crash the program or cause unexpected behavior.
+
+
+-------------------------
+
+3. What is the output?
+
+int x = 5;
+int* ptr = &x;
+delete ptr; 
+
+Answer:
+This is undefined behavior.
+You should only delete memory that was allocated using 'new'.
+Here, 'x' is on the stack, not the heap, so deleting it is incorrect.
+
+
+
+
+
+
+
+
+
+
+==========================================================================================
+Remove Nth node from end of the Linked List
+
+// Function to remove the Nth node from the end
+struct Node* removeNthFromEnd(struct Node* head, int N) {
+  
+    // Initialize two pointers, fast and slow
+    struct Node* fast = head;
+    struct Node* slow = head;
+
+    // Move fast pointer N steps ahead
+    for (int i = 0; i < N; i++) {
+        if (fast == NULL) return head; 
+        fast = fast->next;
+    }
+
+    // If fast is NULL, remove the head node
+    if (fast == NULL) {
+        struct Node* newHead = head->next;
+        free(head);
+        return newHead;
+    }
+
+    // Move both pointers until fast reaches the end
+    while (fast->next != NULL) {
+        fast = fast->next;
+        slow = slow->next;
+    }
+
+    // Remove the Nth node from the end
+    struct Node* nodeToDelete = slow->next;
+    slow->next = slow->next->next;
+    free(nodeToDelete);
+
+    return head;
+}
+======================================================================================
+Find Middle of the Linked List
+// Function to get the middle of the linked list
+int getMiddle(struct Node* head) {
+  
+    // Initialize the slow and fast pointer to the
+    // head of the linked list
+    struct Node* slow_ptr = head;
+    struct Node* fast_ptr = head;
+
+    // Traverse the linked list
+    while (fast_ptr != NULL && fast_ptr->next != NULL) {
+      
+        // Move the fast pointer by two nodes
+        fast_ptr = fast_ptr->next->next;
+
+        // Move the slow pointer by one node
+        slow_ptr = slow_ptr->next;
+    }
+
+    // Return the slow pointer which is currently pointing
+    // to the middle node of the linked list
+    return slow_ptr->data;
+}
+======================================================
+Delete middle node of linked list
+
+// Function to delete middle node from linked list
+struct Node* deleteMid(struct Node* head) {
+    // If the list is empty, return NULL
+    if (head == NULL)
+        return NULL;
+
+    // If the list has only one node,
+    // delete it and return NULL
+    if (head->next == NULL) {
+        free(head);
+        return NULL;
+    }
+
+    struct Node* prev = NULL;
+    struct Node* slow_ptr = head;
+    struct Node* fast_ptr = head;
+
+    // Move the fast pointer 2 nodes ahead
+    // and the slow pointer 1 node ahead
+    // until fast pointer reaches end of the list
+    while (fast_ptr != NULL && fast_ptr->next != NULL) {
+        fast_ptr = fast_ptr->next->next;
+
+        // Update prev to hold the previous 
+        // slow pointer value
+        prev = slow_ptr;
+
+        slow_ptr = slow_ptr->next;
+    }
+
+    // At this point, slow_ptr points to middle node
+    // Bypass the middle node
+    prev->next = slow_ptr->next;
+
+    // Delete the middle node
+    free(slow_ptr);
+
+    // Return the head of the modified list
+    return head;
+}
+===========================================================================================================
+Detect Loop or Cycle in Linked List
+int detectLoop(struct Node* head) {
+  
+    // Fast and slow pointers initially points to the head
+    struct Node *slow = head, *fast = head;
+
+    // Loop that runs while fast and slow pointer are not
+    // nullptr and not equal
+    while (slow && fast && fast->next) {
+        slow = slow->next;
+        fast = fast->next->next;
+
+        // If fast and slow pointer points to the same node,
+        // then the cycle is detected
+        if (slow == fast) {
+            return true;
+        }
+    }
+    return false;
+}
+================================================================================================================
+Rotate a Linked List by K
+// Function to rotate the linked list
+// to the left by k places
+struct Node* rotate(struct Node *head, int k) {
+  
+    // If the linked list is empty or no rotations are
+    // needed, then return the original linked list
+    if (k == 0 || head == NULL)
+        return head;
+
+    struct Node *curr = head;
+    int len = 1;
+
+    // Find the length of linked list
+    while (curr->next != NULL) {
+        curr = curr->next;
+        len += 1;
+    }
+
+    // Modulo k with length of linked list to handle
+    // large values of k
+    k %= len;
+
+    if (k == 0)
+        return head;
+  
+  	// Make the linked list circular
+    curr->next = head;
+
+    // Traverse the linked list to find the kth node
+    curr = head;
+    for (int i = 1; i < k; i++)
+        curr = curr->next;
+
+    // Update the (k + 1)th node as the new head
+    head = curr->next;
+
+    // Break the loop by updating next pointer of kth node
+    curr->next = NULL;
+    return head;
+}
+
+==========================================================================================================================
+Remove every k-th node of the linked list
+// Function to remove every kth node in the linked list
+struct Node* deleteK(struct Node* head, int k) {
+  
+    // If list is empty or k is 0, return the head
+    if (head == NULL || k <= 0) 
+        return head;
+  
+    struct Node* curr = head;
+    struct Node* prev = NULL;
+
+    int count = 0;
+
+    while (curr != NULL) {
+        count++;
+
+        // If count is a multiple of k, remove 
+        // current node
+        if (count % k == 0) {
+          
+            // skip the current node
+            if (prev != NULL) {
+                prev->next = curr->next;
+            } 
+            else {
+         
+                head = curr->next;
+            }
+            free(curr);
+            curr = prev != NULL ? prev->next : head;
+        } 
+        else {
+          
+            // Update previous node pointer only if
+            // we do not remove the node
+            prev = curr;
+            curr = curr->next;
+        }
+    }
+    return head;
+}
+=====================================================================================================================
+Delete N nodes after M nodes of a linked list
+// Function to skip m nodes and then delete n nodes of the linked list
+struct Node *skipMdeleteN(struct Node *head, int m, int n){
+    struct Node *curr = head; // Current node pointer
+    struct Node *t;           // Temporary node pointer
+    int count;                // Counter variable
+
+    // Traverse through the entire linked list
+    while (curr != NULL){
+        // Skip m nodes
+        for (count = 1; count < m && curr != NULL; count++)
+            curr = curr->next;
+
+        // If end of the list is reached, return the head
+        if (curr == NULL)
+            return head;
+
+        // Start from the next node and delete n nodes
+        t = curr->next;
+        for (count = 1; count <= n && t != NULL; count++){
+            struct Node *temp = t;
+            t = t->next;
+            free(temp);
+        }
+
+        // Link the current node to the remaining list
+        curr->next = t;
+
+        // Move the current pointer to the next node
+        curr = t;
+    }
+
+    return head;
+}
+===========================================================================================================
+Pairwise Swap Elements of a given Linked List
+// Function to swap data of nodes in pairs
+void pairwiseSwap(struct Node* head) {
+    struct Node* curr = head;
+
+    // Traverse the list and swap data in pairs
+    while (curr != NULL && curr->next != NULL) {
+        
+        // Swap data of current node and the next node
+        int temp = curr->data;
+        curr->data = curr->next->data;
+        curr->next->data = temp;
+
+        // Move to the next pair
+        curr = curr->next->next;
+    }
+}
+===============================================================================================================================
+Segregate even and odd nodes in a Linked List
+// Function to segregate even and odd nodes 
+// and return the head of the new list
+// Function to segregate even and odd nodes 
+// and return the head of the new list.
+struct Node* segregateEvenOdd(struct Node* head) {
+  
+    // We create dummy nodes to avoid extra 
+    // condition checks in the while loop.
+    struct Node* eStart = newNode(0);
+    struct Node* oStart = newNode(0);
+    
+    // Pointers to the end of the even and odd lists
+    struct Node* eEnd = eStart;
+    struct Node* oEnd = oStart;
+
+    // Node to traverse the list
+    struct Node* curr = head;
+
+    while (curr != NULL) {
+        int val = curr->data;
+
+        // If current value is even, add it to the even list
+        if (val % 2 == 0) {
+            eEnd->next = curr;
+            eEnd = eEnd->next;
+        } else { // Else to the odd list
+            oEnd->next = curr;
+            oEnd = oEnd->next;
+        }
+
+        // Move to the next node
+        curr = curr->next;
+    }
+
+    // Terminate the odd list
+    oEnd->next = NULL;
+
+    // Combine even and odd lists
+    eEnd->next = oStart->next;
+
+    // Return the new head of the combined list (even head)
+    struct Node* newHead = eStart->next;
+
+    // Clean up dummy nodes
+    free(eStart);
+    free(oStart);
+
+    return newHead;
+}
+===========================================================================================================
+Find the sum of last n nodes of the given Linked List
+
+Maintain two pointers – reference pointer and main pointer. Initialize both reference and main pointers to head. First, move reference pointer
+ to n nodes from head and while traversing accumulate node's data to some variable, say sum. 
+
+Now move both pointers simultaneously until the reference pointer reaches the end of the list and while traversing accumulate all node's 
+data to sum pointed by the reference pointer and accumulate all node's data to some variable, say, temp, pointed by the main pointer. 
+Now, (sum - temp) is the required sum of the last n nodes.
+
+
+// utility function to find the sum of last 'n' nodes
+int sumOfLastN_NodesUtil(struct Node* head, int n)
+{
+    // if n == 0
+    if (n <= 0)
+        return 0;
+
+    int sum = 0, temp = 0;
+    struct Node* ref_ptr, *main_ptr;
+    ref_ptr = main_ptr = head;
+
+    // traverse 1st 'n' nodes through 'ref_ptr' and
+    // accumulate all node's data to 'sum'
+    while (ref_ptr != NULL &&  n--) {                   
+        sum += ref_ptr->data;
+
+        // move to next node
+        ref_ptr = ref_ptr->next;
+    }
+
+    // traverse to the end of the linked list
+    while (ref_ptr != NULL) {
+
+        // accumulate all node's data to 'temp' pointed
+        // by the 'main_ptr'
+        temp += main_ptr->data;
+
+        // accumulate all node's data to 'sum' pointed by
+        // the 'ref_ptr'
+        sum += ref_ptr->data;
+
+        // move both the pointers to their respective
+        // next nodes
+        main_ptr = main_ptr->next;
+        ref_ptr = ref_ptr->next;
+    }
+
+    // required sum
+    return (sum - temp);
+}
+==============================================================================================
+Merge two sorted linked lists
+
+// Function to merge two sorted linked lists iteratively
+struct Node* sortedMerge(struct Node* head1,
+                             struct Node* head2) {
+  
+    // Create a dummy node to simplify
+    // the merging process
+    struct Node* dummy = createNode(-1);
+    struct Node* curr = dummy;
+
+    // Iterate through both linked lists
+    while (head1 != NULL && head2 != NULL) {
+      
+        // Add the smaller node to the merged list
+        if (head1->data <= head2->data) {
+            curr->next = head1;
+            head1 = head1->next;
+        } else {
+            curr->next = head2;
+            head2 = head2->next;
+        }
+        curr = curr->next;
+    }
+
+    // If any list is left, append it to 
+    // the merged list
+    if (head1 != NULL) {
+        curr->next = head1;
+    } else {
+        curr->next = head2;
+    }
+
+    // Return the merged list starting 
+    // from the next of dummy node
+    return dummy->next;
+}
+
+=============================================================================================================================
+Swap nodes in a linked list without swapping data
+// Function to swap nodes x and y in linked list by
+// changing links and return the updated head 
+struct Node* swapNodes(struct Node* head, int x, int y) {
+  
+    // Nothing to do if x and y are the same
+    if (x == y)
+        return head;
+
+    struct Node *prevX = NULL, *currX = NULL;
+    struct Node *prevY = NULL, *currY = NULL;
+    struct Node *curr = head;
+
+    // First loop to find x
+    while (curr != NULL) {
+        if (curr->data == x) {
+            currX = curr;
+            break;
+        }
+        prevX = curr;
+        curr = curr->next;
+    }
+
+    curr = head; 
+
+    // Second loop to find y
+    while (curr != NULL) {
+        if (curr->data == y) {
+            currY = curr;
+            break;
+        }
+        prevY = curr;
+        curr = curr->next;
+    }
+
+    // If either x or y is not present, nothing to do
+    if (currX == NULL || currY == NULL)
+        return head;
+
+    // If x is not head of the linked list
+    if (prevX != NULL)
+        prevX->next = currY;
+    else
+        head = currY;
+
+    // If y is not head of the linked list
+    if (prevY != NULL)
+        prevY->next = currX;
+    else
+        head = currX; 
+
+    // Swap next pointers
+    struct Node* temp = currY->next;
+    currY->next = currX->next;
+    currX->next = temp;
+
+    return head;
+}
+===========================================================================================
+Intersection point of two Linked Lists
+Given two singly linked lists that merge into a single Y-shaped list. The two lists initially have distinct paths
+ but eventually converge at a common node, forming a Y-shape, the task is to find and return the node where the two lists merge.
+
+// Function to get the intersection point of two
+// linked lists where head1 has d more nodes than head2
+struct Node* getIntersectionByDiff(int diff, struct Node* head1, struct Node* head2) {
+    struct Node* curr1 = head1;
+    struct Node* curr2 = head2;
+
+    // Move the pointer forward by d nodes
+    for (int i = 0; i < diff; i++) {
+        if (curr1 == NULL)
+            return NULL;
+        curr1 = curr1->next;
+    }
+
+    // Move both pointers until they intersect
+    while (curr1 != NULL && curr2 != NULL) {
+        if (curr1 == curr2)
+            return curr1;
+        curr1 = curr1->next;
+        curr2 = curr2->next;
+    }
+
+    return NULL;
+}
+
+// Function to get the intersection point of two linked lists
+struct Node* intersectPoint(struct Node* head1, struct Node* head2) {
+  
+    // Count the number of nodes in both linked lists
+    int len1 = getCount(head1);
+    int len2 = getCount(head2);
+
+    int diff = 0;
+
+    // If the first list is longer
+    if (len1 > len2) {
+        diff = len1 - len2;
+        return getIntersectionByDiff(diff, head1, head2);
+    } else {
+        diff = len2 - len1;
+        return getIntersectionByDiff(diff, head2, head1);
+    }
+}
