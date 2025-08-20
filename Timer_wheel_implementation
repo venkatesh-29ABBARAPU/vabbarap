@@ -1,0 +1,83 @@
+/*
+ * per-CPU timer vector definitions:
+ */
+#define TVN_BITS (CONFIG_BASE_SMALL ? 4 : 6)
+#define TVR_BITS (CONFIG_BASE_SMALL ? 6 : 8)
+#define TVN_SIZE (1 << TVN_BITS)
+#define TVR_SIZE (1 << TVR_BITS)
+#define TVN_MASK (TVN_SIZE - 1)
+#define TVR_MASK (TVR_SIZE - 1)
+
+//TVR_SIZE = 1 << 8 = 256
+//TVN_SIZE = 1 << 6 = 64
+
+struct tvec {
+	struct list_head vec[TVN_SIZE];
+};
+struct tvec_root {
+	struct list_head vec[TVR_SIZE];
+};
+struct tvec_base {
+	spinlock_t lock;
+	struct timer_list *running_timer;
+	unsigned long timer_jiffies;
+	unsigned long next_timer;
+	struct tvec_root tv1;
+	struct tvec tv2;
+	struct tvec tv3;
+	struct tvec tv4;
+	struct tvec tv5;
+} ____cacheline_aligned;
+struct tvec_base boot_tvec_bases;
+EXPORT_SYMBOL(boot_tvec_bases);
+static DEFINE_PER_CPU(struct tvec_base *, tvec_bases) = &boot_tvec_bases;
+
+
+struct timer_list {
+	struct list_head entry;
+	unsigned long expires;
+	struct tvec_base *base;
+	void (*function)(unsigned long);
+	unsigned long data;
+};
+
+static inline int timer_pending(const struct timer_list * timer)
+{
+	return timer->entry.next != NULL;
+}
+=========================================================================================================
+🔹 What is detach_timer()?
+When a timer in Linux is expired or re-queued, it needs to be detached from the hash bucket list (tv1..tv5).
+That’s what detach_timer() does: it unlinks the timer safely from whatever list it is in.
+==========================================================================================================
+static inline void detach_timer(struct timer_list *timer, int clear_pending)
+{
+    if (timer_pending(timer)) {
+        list_del(&timer->entry);
+        if (clear_pending)
+            timer->entry.next = NULL;
+    }
+}
+
+int mod_timer(struct timer_list *timer, unsigned long expires)
+{
+  	return __mod_timer(timer, expires, false, TIMER_NOT_PINNED);
+}
+
+static inline int __mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only, int pinned)
+{
+    	base = lock_timer_base(timer, &flags);
+	   if (timer_pending(timer)) {
+		        detach_timer(timer, 0);
+		        if (timer->expires == base->next_timer)
+			        base->next_timer = base->timer_jiffies;
+		          ret = 1;
+	  } 
+	timer->expires = expires;
+	if (time_before(timer->expires, base->next_timer))
+      		base->next_timer = timer->expires;
+	internal_add_timer(base, timer);
+}
+
+
+
