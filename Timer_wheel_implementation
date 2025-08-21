@@ -79,5 +79,97 @@ static inline int __mod_timer(struct timer_list *timer, unsigned long expires, b
 	internal_add_timer(base, timer);
 }
 
+static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
+{
+    unsigned long expires = timer->expires;
+    unsigned long idx = expires - base->timer_jiffies;
+    struct list_head *vec;
 
+    if (idx < TVR_SIZE) {
+        // Near expiry → put into tv1
+        int i = expires & TVR_MASK;
+        vec = base->tv1.vec + i;
+    } else if (idx < 1 << (TVR_BITS + TVN_BITS)) {
+        // Goes into tv2
+        int i = (expires >> TVR_BITS) & TVN_MASK;
+        vec = base->tv2.vec + i;
+    } else if (idx < 1 << (TVR_BITS + 2*TVN_BITS)) {
+        // Goes into tv3
+        int i = (expires >> (TVR_BITS + TVN_BITS)) & TVN_MASK;
+        vec = base->tv3.vec + i;
+    } else if (idx < 1 << (TVR_BITS + 3*TVN_BITS)) {
+        // Goes into tv4
+        int i = (expires >> (TVR_BITS + 2*TVN_BITS)) & TVN_MASK;
+        vec = base->tv4.vec + i;
+    } else if ((long)idx < 0) {
+        // Already expired → run soon
+        vec = base->tv1.vec + (base->timer_jiffies & TVR_MASK);
+    } else {
+        // Far future → goes into tv5
+        int i = (expires >> (TVR_BITS + 4*TVN_BITS)) & TVN_MASK;
+        vec = base->tv5.vec + i;
+    }
+
+    // Link timer into chosen bucket
+    list_add_tail(&timer->entry, vec);
+}
+==================================================================================
+2. What’s happening?
+base->timer_jiffies = the "current time" in the timer wheel for this CPU.
+timer->expires = the absolute expiry time (in jiffies).
+
+idx = expires - timer_jiffies = how far in the future the timer is.
+
+Then:
+If it’s very near (fits in tv1 slots), it goes to tv1. Otherwise it goes to tv2, tv3, … up to tv5.
+The exact bucket index is chosen using bit shifts & masks.
+
+3. Example Walkthrough
+Setup
+
+Assume:
+TVR_BITS = 8 → 256 slots in tv1
+TVN_BITS = 6 → 64 slots in tv2–tv5
+
+Current base->timer_jiffies = 1000
+
+Step-by-step
+1. Timer with expires=1005
+idx = 1005-1000=5 (<256) → goes to tv1.
+Slot = 1005 & 0xFF = 229.
+Stored in tv1.vec[229].
+2. Timer with expires=1100
+idx = 100.
+100 < 256 → goes to tv1.
+Slot = 1100 & 0xFF = 76.
+Stored in tv1.vec[76].
+3. Timer with expires=1200
+idx = 200.
+200 < 256 → tv1.
+Slot = 1200 & 0xFF = 176.
+Stored in tv1.vec[176].
+
+4. Timer with expires=2000
+idx = 1000.
+1000 >= 256, but 1000 < (1 << (8+6)) = 16384 → goes to tv2.
+Slot = (2000 >> 8) & 63 = 7.
+Stored in tv2.vec[7].
+5. Timer with expires=5000
+idx = 4000.
+Still <16384 → tv2.
+Slot = (5000 >> 8) & 63 = 19.
+Stored in tv2.vec[19].
+6. Timer with expires=100000
+idx = 99000.
+Too large for tv2 (<16384) but <1 << (8+2*6) = 1,048,576 → goes to tv3.
+Slot = (100000 >> (8+6)) & 63 = 24.
+Stored in tv3.vec[24].
+
+Diagram (simplified)
+ tv1 (256 slots)                  tv2 (64 slots)             tv3 (64 slots)
+ ┌───────┐                        ┌───────┐                  ┌───────┐
+ │ vec[76]  → Timer(exp=1100)     │ vec[7]  → Timer(2000)    │ vec[24] → Timer(100000)
+ │ vec[176] → Timer(exp=1200)     │ vec[19] → Timer(5000)    │
+ │ vec[229] → Timer(exp=1005)     │                          │
+ └───────┘                        └───────┘                  └───────┘
 
