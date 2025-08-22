@@ -41,6 +41,8 @@ struct timer_list {
 	unsigned long data;
 };
 
+#define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
+
 static inline int timer_pending(const struct timer_list * timer)
 {
 	return timer->entry.next != NULL;
@@ -57,6 +59,12 @@ static inline void detach_timer(struct timer_list *timer, int clear_pending)
         if (clear_pending)
             timer->entry.next = NULL;
     }
+}
+
+void add_timer(struct timer_list *timer)
+{
+	BUG_ON(timer_pending(timer));
+	mod_timer(timer, timer->expires);
 }
 
 int mod_timer(struct timer_list *timer, unsigned long expires)
@@ -172,4 +180,109 @@ Diagram (simplified)
  │ vec[176] → Timer(exp=1200)     │ vec[19] → Timer(5000)    │
  │ vec[229] → Timer(exp=1005)     │                          │
  └───────┘                        └───────┘                  └───────┘
+
+======================================When Timer Interrupt occurs===============================================================================
+/*
+ * This function runs timers and the timer-tq in bottom half context.
+ */
+static void run_timer_softirq(struct softirq_action *h)
+{
+	struct tvec_base *base = __this_cpu_read(tvec_bases);
+	
+	if (time_after_eq(jiffies, base->timer_jiffies))
+		__run_timers(base);
+}
+
+
+#define INDEX(0) ((base->timer_jiffies >> (8 + (0) * 6)) & 63) ===> (base->timer_jiffies >> 8) & 63
+#define INDEX(1) ((base->timer_jiffies >> (8 + (1) * 6)) & 63) ===> (base->timer_jiffies >> 14) & 63
+#define INDEX(2) ((base->timer_jiffies >> (8 + (2) * 6)) & 63  ===> (base->timer_jiffies >> 20) & 63
+#define INDEX(3) ((base->timer_jiffies >> (8 + (3) * 6)) & 63  ===> (base->timer_jiffies >> 26) & 63
+
+ * __run_timers - run all expired timers (if any) on this CPU.
+ * @base: the timer vector to be processed.
+ *
+ * This function cascades all vectors and executes all expired timer
+ * vectors.
+ */
+static inline void __run_timers(struct tvec_base *base)
+{
+	struct timer_list *timer;
+	spin_lock_irq(&base->lock);
+
+	while (time_after_eq(jiffies, base->timer_jiffies)) {
+		struct list_head work_list;
+		struct list_head *head = &work_list;
+		int index = base->timer_jiffies & TVR_MASK;
+		/*
+		 * Cascade timers:
+		 */
+		if (!index && (!cascade(base, &base->tv2, INDEX(0))) &&
+				      (!cascade(base, &base->tv3, INDEX(1))) &&
+					   !cascade(base, &base->tv4, INDEX(2)))
+			  cascade(base, &base->tv5, INDEX(3));
+===========================Above if condition can be rewritten as below for better understanding==========
+    if (index == 0) {
+         if (cascade(base, &base->tv2, INDEX(0)) == 0) {
+             if (cascade(base, &base->tv3, INDEX(1)) == 0) {
+                 if (cascade(base, &base->tv4, INDEX(2)) == 0) {
+                       cascade(base, &base->tv5, INDEX(3));
+                 }
+           }
+       }
+   }
+=========================================================================================================
+		++base->timer_jiffies; //The value of base->timer_jiffies represents the last tick (in terms jiffies) for which timers have been processed in the current timer base.
+                               🧠 What is base->timer_jiffies?
+                                 • It tracks the progress of timer execution within this timer base.
+                                 • Initially, it might be set to the current value of jiffies.
+                                 • As timers are processed, base->timer_jiffies is incremented to reflect that timers up to that tick have been handled.
+
+		list_replace_init(base->tv1.vec + index, &work_list);
+	
+		while (!list_empty(head)) {
+			void (*fn)(unsigned long);
+			unsigned long data;
+			timer = list_first_entry(head, struct timer_list,entry);
+			fn = timer->function;
+			data = timer->data;
+			
+			base->running_timer = timer;
+			detach_timer(timer, 1);
+			spin_unlock_irq(&base->lock);
+			//call_timer_fn(timer, fn, data);-->this calls internally fn(data) with having multiple trace points
+			fn(data);
+			spin_lock_irq(&base->lock);
+		}
+	}
+	base->running_timer = NULL;
+	spin_unlock_irq(&base->lock);
+}
+
+==============================================================================================
+int cascade(tvec_base_t *base, tvec_t *tv, int index) {
+    int moved = 0;
+    
+    // Get the current slot in tv2 that needs cascading
+    struct list_head *slot = &tv->vec[index];
+    
+    // Move all timers from this slot to appropriate tv1 slots
+    while (!list_empty(slot)) {
+        timer_t *timer = list_first_entry(slot, timer_t, entry);
+        list_del(&timer->entry);
+        
+        // Calculate new expiration time relative to current base
+        unsigned long expires = timer->expires;
+        unsigned long idx = expires - base->timer_jiffies;
+        
+        // Add to correct tv1 slot
+        int new_slot = idx & TVR_MASK;  // TVR_MASK = 0xFF (256 slots)
+        list_add_tail(&timer->entry, &base->tv1.vec[new_slot]);
+        
+        moved++;
+    }
+    
+    return moved;
+}
+
 
