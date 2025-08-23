@@ -1,0 +1,183 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+#define CAPACITY 3   // Max number of cache entries
+#define HASH_SIZE 10 // Size of hash table
+
+// Doubly Linked List Node
+typedef struct Node {
+    int key;
+    int value;
+    struct Node *prev, *next;
+} Node;
+
+// LRU Cache structure
+typedef struct {
+    Node *head, *tail;
+    Node *hash[HASH_SIZE];
+    int capacity;
+    int count;
+} LRUCache;
+
+// Hash function
+int hashFunc(int key) {
+    return key % HASH_SIZE;
+}
+// Create a new node
+Node* createNode(int key, int value) {
+    Node* node = (Node*)malloc(sizeof(Node));
+    node->key = key;
+    node->value = value;
+    node->prev = node->next = NULL;
+    return node;
+}
+
+// Initialize LRU Cache
+LRUCache* initCache(int capacity) {
+    LRUCache* cache = (LRUCache*)malloc(sizeof(LRUCache));
+    cache->capacity = capacity;
+    cache->count = 0;
+    cache->head = cache->tail = NULL;
+    for (int i = 0; i < HASH_SIZE; i++)
+        cache->hash[i] = NULL;
+    return cache;
+}
+// Remove node from linked list
+void removeNode(LRUCache* cache, Node* node) {
+    if (!node) return;
+    if (node->prev) node->prev->next = node->next;
+    else cache->head = node->next;
+
+    if (node->next) node->next->prev = node->prev;
+    else cache->tail = node->prev;
+}
+
+// Insert node at head
+void insertAtHead(LRUCache* cache, Node* node) {
+    node->next = cache->head;
+    node->prev = NULL;
+    if (cache->head) cache->head->prev = node;
+    cache->head = node;
+    if (!cache->tail) cache->tail = node;
+}
+
+// Get value from cache
+int get(LRUCache* cache, int key) {
+    int hashIndex = hashFunc(key);
+    Node* node = cache->hash[hashIndex];
+
+    while (node) {
+        if (node->key == key) {
+            // Move accessed node to head
+            removeNode(cache, node);
+            insertAtHead(cache, node);
+            return node->value;
+        }
+        node = node->next;
+    }
+    return -1; // Not found
+}
+
+// Put key-value in cache
+void put(LRUCache* cache, int key, int value) {
+    int hashIndex = hashFunc(key);
+        printf("%s: key=%d val=%d hashIndex=%d\n",__func__,key,value,hashIndex);
+    Node* node = cache->hash[hashIndex];
+
+    // Check if key exists
+    while (node) {
+        printf("node->key=%d key=%d\n",node->key,key);
+        if (node->key == key) {
+            node->value = value;
+            removeNode(cache, node);
+            insertAtHead(cache, node);
+            return;
+        }
+        node = node->next;
+    }
+
+    // If cache is full, remove LRU
+    if (cache->count == cache->capacity) {
+        Node* lru = cache->tail;
+        removeNode(cache, lru);
+
+        // Remove from hash
+        int lruIndex = hashFunc(lru->key);
+        Node* curr = cache->hash[lruIndex];
+        Node* prev = NULL;
+        while (curr) {
+            if (curr == lru) {
+                if (prev) 
+                    prev->next = curr->next;
+                else 
+                    cache->hash[lruIndex] = curr->next;
+             break;
+            }
+            prev = curr;
+            curr = curr->next;
+        }
+        free(lru);
+        cache->count--;
+    }
+
+    // Create new node
+    Node* newNode = createNode(key, value);
+
+    // Add to hash table (insert at head of chain for that index)
+    newNode->next = cache->hash[hashIndex];
+    cache->hash[hashIndex] = newNode;
+
+    // Insert to DLL head
+    insertAtHead(cache, newNode);
+    cache->count++;
+}
+
+// Print cache state
+void printCache(LRUCache* cache) {
+    Node* curr = cache->head;
+    printf("Cache state: ");
+    while (curr) {
+        printf("[%d:%d] ", curr->key, curr->value);
+        curr = curr->next;
+    }
+    printf("\n");
+}
+
+int main() {
+    LRUCache* cache = initCache(CAPACITY);
+
+   // put(cache, 1, 10);
+
+    put(cache, 2, 20);
+    printCache(cache);
+    put(cache, 2, 40);
+    printCache(cache);
+    put(cache, 2, 50);
+//    put(cache, 3, 30);
+    printCache(cache);
+
+    get(cache, 1); // Access key 1 → becomes most recent
+    printCache(cache);
+  put(cache, 4, 40); // Evicts key 2
+    printCache(cache);
+
+    printf("Get key 3: %d\n", get(cache, 3));
+    printCache(cache);
+
+    return 0;
+}
+
+./a.out
+put: key=2 val=20 hashIndex=2
+Cache state: [2:20]
+put: key=2 val=40 hashIndex=2
+node->key=2 key=2
+Cache state: [2:40]
+put: key=2 val=50 hashIndex=2
+node->key=2 key=2
+Cache state: [2:50]
+Cache state: [2:50]
+put: key=4 val=40 hashIndex=4
+Cache state: [4:40] [2:50]
+Get key 3: -1
+Cache state: [4:40] [2:50]
