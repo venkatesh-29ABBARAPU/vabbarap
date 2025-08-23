@@ -43,6 +43,14 @@ struct timer_list {
 
 #define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
 
+The Big Picture: Hierarchical Timer Wheels
+Linux uses multiple timer wheels for efficiency:
+tv1: 256 buckets, finest granularity (0-255 jiffies)
+tv2: 64 buckets, next level (256-16383 jiffies)
+tv3: 64 buckets, next level (16384-1048575 jiffies)
+tv4: 64 buckets, coarsest level (1048576-∞ jiffies)
+
+
 static inline int timer_pending(const struct timer_list * timer)
 {
 	return timer->entry.next != NULL;
@@ -238,7 +246,9 @@ static inline void __run_timers(struct tvec_base *base)
                                  • Initially, it might be set to the current value of jiffies.
                                  • As timers are processed, base->timer_jiffies is incremented to reflect that timers up to that tick have been handled.
 
-		list_replace_init(base->tv1.vec + index, &work_list);
+		list_replace_init(base->tv1.vec + index, &work_list);//	Moves all timers from slot index of tv1 into work_list.
+																Leaves tv1.vec[index] empty.Then we walk through work_list and re-add each timer via 
+																internal_add_timer() to the proper level (maybe tv1 again, maybe tv2, etc.).
 	
 		while (!list_empty(head)) {
 			void (*fn)(unsigned long);
@@ -286,3 +296,76 @@ int cascade(tvec_base_t *base, tvec_t *tv, int index) {
 }
 
 
+static int cascade(struct tvec_base *base, struct tvec *tv, int index)
+{
+	/* cascade all the timers from tv up one level */
+	struct timer_list *timer, *tmp;
+	struct list_head tv_list;
+	list_replace_init(tv->vec + index, &tv_list);
+	/* We are removing _all_ timers from the list, so we don't have to detach them individually. */
+	list_for_each_entry_safe(timer, tmp, &tv_list, entry) {
+		internal_add_timer(base, timer);
+	}
+	return index;
+}
+
+
+1. Context — Why cascade?
+
+The timer wheel (tv1..tv5) is hierarchical.
+tv1 handles near-future timers (fine granularity).
+tv2 handles timers farther out.
+When tv1 wraps (index rolls over to 0), one "slot" from tv2 is cascaded down to refill tv1.
+So when INDEX(0) is reached:
+Slot 0 of tv2 is cascaded into tv1.
+
+2. What cascade(base, &base->tv2, INDEX(0)) does
+Suppose tv2.vec[0] looks like this:
+tv2.vec[0] → T1 → T2 → T3
+
+These timers were originally placed in tv2 because their expiry was too far in the future to fit inside tv1’s range.
+Now enough time has passed (tv1 rolled over), so they need to be reconsidered.
+
+3. Step by step
+Step 1: Move list
+list_replace_init(tv->vec + index, &tv_list);
+
+Now:
+tv2.vec[0] becomes empty.
+tv_list holds → T1 → T2 → T3.
+
+Step 2: Reinsert timers
+list_for_each_entry_safe(timer, tmp, &tv_list, entry) {
+    internal_add_timer(base, timer);
+}
+
+Each timer is now re-added via internal_add_timer().
+That function checks the remaining expiry time vs. base->timer_jiffies and decides:
+If the expiry is now within tv1’s range → goes into the correct slot in tv1.vec.
+Otherwise → still belongs to tv2 (or even deeper), so it gets placed back there.
+
+4. Concrete Example
+Let’s say:
+jiffies = 512.
+tv1 covers the next 256 ticks (512..767).
+tv2 slot 0 holds timers expiring at 600, 650, 700.
+
+Diagram before cascade:
+tv1 (covers 512..767): [empty slots so far]
+tv2.vec[0]: → T1(exp=600) → T2(exp=650) → T3(exp=700)
+When cascade(base, &base->tv2, 0) runs:
+Slot tv2.vec[0] emptied into tv_list.
+Each timer re-added:
+T1(600) → fits into tv1.vec[88] (600 - 512 = 88).
+T2(650) → fits into tv1.vec[138].
+T3(700) → fits into tv1.vec[188].
+
+Diagram after cascade:
+tv1.vec[88] → T1
+tv1.vec[138] → T2
+tv1.vec[188] → T3
+tv2.vec[0] → empty
+
+✅ That’s how cascade() + internal_add_timer() move timers down:
+Cascade empties a slot.
+internal_add_timer redistributes each timer to the right place, possibly in a lower level.
