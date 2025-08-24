@@ -181,3 +181,106 @@ put: key=4 val=40 hashIndex=4
 Cache state: [4:40] [2:50]
 Get key 3: -1
 Cache state: [4:40] [2:50]
+=========================================================================================================================================
+Example Scenario
+Let’s walk through an example where the cache is full, and we add a new key-value pair, triggering LRU eviction. Assume:
+
+HASH_SIZE = 10, capacity = 3, count = 3.
+Initial cache: (1, 10), (2, 20), (3, 30).
+Doubly linked list: head -> [1:10] <-> [2:20] <-> [3:30] -> tail.
+Hash table: hash[1] = [1:10], hash[2] = [2:20], hash[3] = [3:30], others NULL.
+We call put(cache, 4, 40) to add (4, 40).
+
+Initial Diagram:
+textDoubly Linked List:
+  head -> [1:10, prev=NULL, next=[2:20]] <-> [2:20, prev=[1:10], next=[3:30]] <-> [3:30, prev=[2:20], next=NULL] -> tail
+
+Hash Table:
+  hash[0] = NULL
+  hash[1] = [1:10, prev=NULL, next=NULL]
+  hash[2] = [2:20, prev=NULL, next=NULL]
+  hash[3] = [3:30, prev=NULL, next=NULL]
+  hash[4..9] = NULL
+Step-by-Step Execution of put(cache, 4, 40)
+
+Check if Key Exists:
+hashIndex = hashFunc(4) = 4 % 10 = 4.
+cache->hash[4] = NULL (no node with key=4).
+Proceed to add new node since key doesn’t exist.
+
+Cache Full Check:
+cache->count == cache->capacity (3 == 3), so the cache is full.
+Enter the LRU removal block.
+
+Identify LRU:
+lru = cache->tail = [3:30] (key=3, value=30 is LRU).
+Remove from Doubly Linked List:
+removeNode(cache, lru);:
+lru->prev = [2:20], lru->next = NULL.
+lru->prev->next = lru->next → [2:20]->next = NULL.
+lru->next is NULL, so skip node->next->prev.
+cache->tail = lru->prev → cache->tail = [2:20].
+
+Diagram After removeNode:
+textDoubly Linked List:
+  head -> [1:10, prev=NULL, next=[2:20]] <-> [2:20, prev=[1:10], next=NULL] -> tail
+  [3:30, prev=[2:20], next=NULL] // Temporarily unlinked
+
+Hash Table: (Unchanged)
+  hash[1] = [1:10]
+  hash[2] = [2:20]
+  hash[3] = [3:30] // Still points to [3:30]
+  hash[4..9] = NULL
+
+Remove from Hash Table:
+lruIndex = hashFunc(lru->key) = 3 % 10 = 3.
+curr = cache->hash[3] = [3:30], prev = NULL.
+while (curr):
+curr == lru (first node matches).
+prev is NULL, so cache->hash[lruIndex] = curr->next → cache->hash[3] = NULL (no chain at index 3).
+Break.
+
+Diagram After Hash Removal:
+textDoubly Linked List: (Unchanged)
+  head -> [1:10] <-> [2:20] -> tail
+
+Hash Table:
+  hash[1] = [1:10]
+  hash[2] = [2:20]
+  hash[3] = NULL // [3:30] removed
+  hash[4..9] = NULL
+
+Free LRU Node:
+free(lru); → Frees memory of [3:30].
+
+Decrement Count:
+cache->count-- → count = 2.
+
+Add New Node (Remaining put Code):
+Create newNode = [4:40].
+hashIndex = 4, newNode->next = cache->hash[4] = NULL, cache->hash[4] = newNode.
+insertAtHead(cache, newNode) → Adds [4:40] to head.
+cache->count++ → count = 3.
+
+Final Diagram:
+textDoubly Linked List:
+  head -> [4:40, prev=NULL, next=[1:10]] <-> [1:10, prev=[4:40], next=[2:20]] <-> [2:20, prev=[1:10], next=NULL] -> tail
+
+Hash Table:
+  hash[1] = [1:10]
+  hash[2] = [2:20]
+  hash[3] = NULL
+  hash[4] = [4:40, prev=NULL, next=NULL]
+  hash[5..9] = NULL
+Collision Example
+If the LRU node is in a hash table chain (e.g., key=13 at hash[3] along with key=3), the while loop finds the node:
+
+Suppose hash[3] = [13:130] -> [3:30], and LRU is [3:30].
+curr reaches [3:30], prev = [13:130].
+prev->next = curr->next → [13:130]->next = NULL.
+hash[3] remains [13:130].
+
+Diagram:
+textHash Table (hash[3]):
+  Before: [13:130] -> [3:30] -> NULL
+  After:  [13:130] -> NULL
