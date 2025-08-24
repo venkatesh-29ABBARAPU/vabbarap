@@ -1,29 +1,54 @@
 c_programs:
 ====================================================================================
+====================================================================================
 1)Insert a node at the beginning of the list?
 2)Insert a node at the end of the list?
+==========================================================
 3)Delete a node if the node data element is given?
 4)Delete the entire list?
-5)Reverse the linked list?
 6)Remove Nth node from end of the Linked List
+11)Delete/Remove every k-th node of the linked list
+12)Delete N nodes after M nodes of a linked list
+=========================================================
 7)Find Middle of the Linked List
 8)Delete middle node of linked list
 9)Detect Loop or Cycle in Linked List
+25)Detect and Remove Loop in Linked List
+=============================================================
 10)Rotate a Linked List by K
-11)Remove every k-th node of the linked list
-12)Delete N nodes after M nodes of a linked list
 13)Pairwise Swap Elements of a given Linked List
 14)Segregate even and odd nodes in a Linked List
 15)Find the sum of last n nodes of the given Linked List
-16)Merge two sorted linked lists
+===================REVERSE==========================================================
+5)Reverse the linked list?
+20)Reverse a sublist of linked list->reverse(head,m,n)
+Given the head of a singly linked list and two integers left and right where left <= right, 
+reverse the nodes of the list from position left to position right, and return the reversed list.
+21)Reverse a Linked List in groups of given size (Iterative Approach)
+28)Reverse Nodes in Even Length Groups(1,2,3,4...) need to reverse only the even ones i.e., 2, 4,...etc
+29)Reverse Alternate K nodes in linked list?
+30)Reverse nodes at even positions in linked list?
+====================SWAP===================================================================
 17)Swap nodes in a linked list without swapping data
+27)Swap Kth node from beginning with Kth node from end in a Linked List
+31)Swap nodes in pairs in a linked list
+Input: head = [1,2,3,4]
+Output: [2,1,4,3]
+==================================================================================================================
+27)Palindrome Linked List
+28)Add two Linked lists
 18)Intersection point of two Linked Lists
+26)Intersection of two Sorted Linked Lists
+16)Merge two sorted linked lists
+===================================================================================================================
 19)Clone linked list with next and random pointer
+32) Implement LRU Cache using Doubly Linked list and hash
 
+22)Given a 2-D matrix. You need to convert it into a linked list matrix such that each node is linked to its next right and down node and display it.
+23)Segregate 0s and 1s in an array
+24)Segregate 0s, 1s and 2s in an array
 
-
-
-
+u=============================================================================================
 ============================================================================
 
 1. What’s wrong in this snippet?
