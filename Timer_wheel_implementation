@@ -1,21 +1,21 @@
 /*
  * per-CPU timer vector definitions:
  */
-#define TVN_BITS (CONFIG_BASE_SMALL ? 4 : 6)
-#define TVR_BITS (CONFIG_BASE_SMALL ? 6 : 8)
-#define TVN_SIZE (1 << TVN_BITS)
-#define TVR_SIZE (1 << TVR_BITS)
-#define TVN_MASK (TVN_SIZE - 1)
-#define TVR_MASK (TVR_SIZE - 1)
+#define TVN_BITS (CONFIG_BASE_SMALL ? 4 : 6) ==> 6
+#define TVR_BITS (CONFIG_BASE_SMALL ? 6 : 8) ==> 8
+#define TVN_SIZE (1 << TVN_BITS) ===> 1<<6 == 64
+#define TVR_SIZE (1 << TVR_BITS) ===> 1<<8 == 256
+#define TVN_MASK (TVN_SIZE - 1)===>63
+#define TVR_MASK (TVR_SIZE - 1)===>255
 
 //TVR_SIZE = 1 << 8 = 256
 //TVN_SIZE = 1 << 6 = 64
 
 struct tvec {
-	struct list_head vec[TVN_SIZE];
+	struct list_head vec[TVN_SIZE];==>vec[64]
 };
 struct tvec_root {
-	struct list_head vec[TVR_SIZE];
+	struct list_head vec[TVR_SIZE];==>vec[256]
 };
 struct tvec_base {
 	spinlock_t lock;
