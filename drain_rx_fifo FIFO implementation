@@ -3,7 +3,9 @@ byte 1 has the register is 0: rx fifo empty, 1: rx fifo full , 4: tx fifo empty,
 byte 2 is reserved
 byte 3 is fifo window where we can read a byte if the data is valid and if there is no data if it will return garbage value?
 could you please implement drain_rx_fifo(uint8_t *dest_buffer, int buffer_size) 
-
+-------------------------------------------------------------------------------------------------------------
+FIFO depth = 4096 bytes, but we only read one byte per access from byte3.
+If FIFO is empty and we still read byte3 → it returns garbage → so we must check the empty flag first before reading.
 ======================================================================================
 #include <stdint.h>
 #include <stdio.h>
@@ -46,3 +48,16 @@ int drain_rx_fifo(uint8_t *dest_buffer, int buffer_size) {
     }
     return count;  // number of bytes drained
 }
+===============================================================================================================
+Example Walkthrough
+Suppose hardware FIFO has bytes: 0xAA, 0xBB, 0xCC.
+First read:
+FIFO_REG = 0x00_00_00_AA → status=0x00 (not empty), data=0xAA.
+Store 0xAA.
+Second read:
+FIFO_REG = 0x00_00_00_BB → store 0xBB.
+Third read:
+FIFO_REG = 0x00_00_00_CC → store 0xCC.
+Fourth read:
+FIFO_REG = 0x01_00_00_xx → status=0x01 (empty), stop.
+Result buffer: [0xAA, 0xBB, 0xCC].
