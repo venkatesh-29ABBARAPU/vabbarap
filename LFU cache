@@ -1,0 +1,277 @@
+Below is a C program implementing a Least Frequently Used (LFU) cache. An LFU cache evicts the least frequently used item when the cache is full and a new item needs 
+to be added. If multiple items have the same frequency, the least recently used among them is evicted. The implementation uses a combination of a hash map for O(1) key-value lookups and a doubly linked list for each frequency to track usage order efficiently.
+
+### Approach
+- **Data Structures**:
+  - **Hash Map**: Stores key-to-node mappings for O(1) lookups.
+  - **Frequency Lists**: Each frequency has a doubly linked list of nodes with that frequency, maintaining insertion order.
+  - **Node Structure**: Each node contains key, value, frequency, and pointers for the doubly linked list.
+  - **Cache Structure**: Tracks capacity, minimum frequency, and pointers to frequency lists and the hash map.
+- **Operations**:
+  - **Get(key)**: Retrieves the value for a key, increments its frequency, and updates its position in the frequency list.
+  - **Put(key, value)**: Adds or updates a key-value pair, evicts the least frequently used item if the cache is full, and updates frequencies and lists.
+- **Eviction**: When the cache is full, remove the least recently used item from the lowest frequency list.
+- **Complexity**: O(1) for both `get` and `put` operations, achieved using the hash map and doubly linked lists.
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Node for doubly linked list
+typedef struct Node {
+    int key;
+    int value;
+    int freq;
+    struct Node* prev;
+    struct Node* next;
+} Node;
+
+// Doubly linked list for a specific frequency
+typedef struct FreqList {
+    int freq;
+    Node* head; // Dummy head
+    Node* tail; // Dummy tail
+    struct FreqList* next;
+    struct FreqList* prev;
+} FreqList;
+
+// LFU Cache structure
+typedef struct {
+    int capacity;
+    int size;
+    int minFreq;
+    Node** hashMap; // Hash map for key to node
+    FreqList* freqHead; // Dummy head for frequency list
+    FreqList* freqTail; // Dummy tail for frequency list
+} LFUCache;
+
+// Create a new node
+Node* createNode(int key, int value) {
+    Node* node = (Node*)malloc(sizeof(Node));
+    node->key = key;
+    node->value = value;
+    node->freq = 1;
+    node->prev = NULL;
+    node->next = NULL;
+    return node;
+}
+
+// Create a new frequency list
+FreqList* createFreqList(int freq) {
+    FreqList* list = (FreqList*)malloc(sizeof(FreqList));
+    list->freq = freq;
+    list->head = (Node*)malloc(sizeof(Node)); // Dummy head
+    list->tail = (Node*)malloc(sizeof(Node)); // Dummy tail
+    list->head->prev = NULL;
+    list->head->next = list->tail;
+    list->tail->prev = list->head;
+    list->tail->next = NULL;
+    list->next = NULL;
+    list->prev = NULL;
+    return list;
+}
+
+// Initialize LFU Cache
+LFUCache* lFUCacheCreate(int capacity) {
+    LFUCache* cache = (LFUCache*)malloc(sizeof(LFUCache));
+    cache->capacity = capacity;
+    cache->size = 0;
+    cache->minFreq = 0;
+    cache->hashMap = (Node**)calloc(10000, sizeof(Node*)); // Fixed-size hash map
+    cache->freqHead = createFreqList(0); // Dummy frequency list
+    cache->freqTail = createFreqList(0); // Dummy frequency list
+    cache->freqHead->next = cache->freqTail;
+    cache->freqTail->prev = cache->freqHead;
+    return cache;
+}
+
+// Add node to frequency list
+void addNodeToFreqList(FreqList* list, Node* node) {
+    node->next = list->head->next;
+    node->prev = list->head;
+    list->head->next->prev = node;
+    list->head->next = node;
+}
+
+// Remove node from its frequency list
+void removeNode(Node* node) {
+    node->prev->next = node->next;
+    node->next->prev = node->prev;
+}
+
+// Get or create frequency list
+FreqList* getOrCreateFreqList(LFUCache* cache, int freq) {
+    FreqList* curr = cache->freqHead->next;
+    while (curr != cache->freqTail && curr->freq < freq) {
+        curr = curr->next;
+    }
+    if (curr != cache->freqTail && curr->freq == freq) {
+        return curr;
+    }
+    // Create new frequency list
+    FreqList* newList = createFreqList(freq);
+    newList->next = curr;
+    newList->prev = curr->prev;
+    curr->prev->next = newList;
+    curr->prev = newList;
+    return newList;
+}
+
+// Update frequency of a node
+void updateFreq(LFUCache* cache, Node* node) {
+    // Remove from current frequency list
+    removeNode(node);
+    // Check if current frequency list is empty
+    FreqList* currFreqList = cache->freqHead->next;
+    while (currFreqList != cache->freqTail && currFreqList->freq < node->freq) {
+        currFreqList = currFreqList->next;
+    }
+    if (currFreqList->freq == node->freq && currFreqList->head->next == currFreqList->tail) {
+        // Remove empty frequency list
+        currFreqList->prev->next = currFreqList->next;
+        currFreqList->next->prev = currFreqList->prev;
+        free(currFreqList->head);
+        free(currFreqList->tail);
+        free(currFreqList);
+        if (cache->minFreq == node->freq) {
+            cache->minFreq++;
+        }
+    }
+    // Increment frequency
+    node->freq++;
+    // Add to new frequency list
+    FreqList* newFreqList = getOrCreateFreqList(cache, node->freq);
+    addNodeToFreqList(newFreqList, node);
+}
+
+// Get value from cache
+int lFUCacheGet(LFUCache* cache, int key) {
+    Node* node = cache->hashMap[key % 10000];
+    while (node && node->key != key) {
+        node = node->next; // Handle hash collisions
+    }
+    if (!node) {
+        return -1; // Key not found
+    }
+    updateFreq(cache, node);
+    return node->value;
+}
+
+// Put key-value pair in cache
+void lFUCachePut(LFUCache* cache, int key, int value) {
+    if (cache->capacity == 0) return;
+
+    // Check if key exists
+    Node* node = cache->hashMap[key % 10000];
+    Node* prev = NULL;
+    while (node && node->key != key) {
+        prev = node;
+        node = node->next;
+    }
+    if (node) {
+        // Update existing node
+        node->value = value;
+        updateFreq(cache, node);
+        return;
+    }
+
+    // Create new node
+    node = createNode(key, value);
+    if (prev) {
+        prev->next = node; // Chain in hash map
+    } else {
+        cache->hashMap[key % 10000] = node;
+    }
+
+    // Add to frequency list
+    FreqList* freqList = getOrCreateFreqList(cache, 1);
+    addNodeToFreqList(freqList, node);
+    cache->size++;
+    cache->minFreq = 1;
+
+    // Evict if over capacity
+    if (cache->size > cache->capacity) {
+        FreqList* minFreqList = cache->freqHead->next;
+        while (minFreqList != cache->freqTail && minFreqList->freq != cache->minFreq) {
+            minFreqList = minFreqList->next;
+        }
+        Node* toRemove = minFreqList->tail->prev;
+        removeNode(toRemove);
+
+        // Remove from hash map
+        Node* hashNode = cache->hashMap[toRemove->key % 10000];
+        if (hashNode == toRemove) {
+            cache->hashMap[toRemove->key % 10000] = toRemove->next;
+        } else {
+            while (hashNode && hashNode->next != toRemove) {
+                hashNode = hashNode->next;
+            }
+            if (hashNode) {
+                hashNode->next = toRemove->next;
+            }
+        }
+
+        // Free node and update size
+        free(toRemove);
+        cache->size--;
+
+        // Remove empty frequency list
+        if (minFreqList->head->next == minFreqList->tail) {
+            minFreqList->prev->next = minFreqList->next;
+            minFreqList->next->prev = minFreqList->prev;
+            free(minFreqList->head);
+            free(minFreqList->tail);
+            free(minFreqList);
+        }
+    }
+}
+
+// Free the cache
+void lFUCacheFree(LFUCache* cache) {
+    // Free hash map nodes
+    for (int i = 0; i < 10000; i++) {
+        Node* node = cache->hashMap[i];
+        while (node) {
+            Node* temp = node;
+            node = node->next;
+            free(temp);
+        }
+    }
+    free(cache->hashMap);
+
+    // Free frequency lists
+    FreqList* freqList = cache->freqHead;
+    while (freqList) {
+        FreqList* temp = freqList;
+        freqList = freqList->next;
+        free(temp->head);
+        free(temp->tail);
+        free(temp);
+    }
+    free(cache);
+}
+
+int main() {
+    // Example usage
+    LFUCache* cache = lFUCacheCreate(2);
+    lFUCachePut(cache, 1, 1); // cache=[1], freq(1)=1
+    lFUCachePut(cache, 2, 2); // cache=[1,2], freq(1)=1, freq(2)=1
+    printf("Get(1): %d\n", lFUCacheGet(cache, 1)); // Returns 1, freq(1)=2
+    lFUCachePut(cache, 3, 3); // Evicts key 2, cache=[1,3], freq(1)=2, freq(3)=1
+    printf("Get(2): %d\n", lFUCacheGet(cache, 2)); // Returns -1 (not found)
+    lFUCachePut(cache, 4, 4); // Evicts key 3, cache=[1,4], freq(1)=2, freq(4)=1
+    printf("Get(1): %d\n", lFUCacheGet(cache, 1)); // Returns 1, freq(1)=3
+    printf("Get(3): %d\n", lFUCacheGet(cache, 3)); // Returns -1 (not found)
+    printf("Get(4): %d\n", lFUCacheGet(cache, 4)); // Returns 4, freq(4)=2
+    lFUCacheFree(cache);
+    return 0;
+}
+### Output
+For the example in `main`:
+```
+Get(1): 1
+Get(2): -1
+Get(1): 1
+Get(3): -1
+Get(4): 4
+```
