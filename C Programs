@@ -6,47 +6,53 @@ c_programs:
 ==========================================================
 3)Delete a node if the node data element is given?
 4)Delete the entire list?
-6)Remove Nth node from end of the Linked List
-11)Delete/Remove every k-th node of the linked list
-12)Delete N nodes after M nodes of a linked list
+5)Remove Nth node from end of the Linked List
+6)Delete/Remove every k-th node of the linked list
+7)Delete N nodes after M nodes of a linked list
 =========================================================
-7)Find Middle of the Linked List
-8)Delete middle node of linked list
-9)Detect Loop or Cycle in Linked List
-25)Detect and Remove Loop in Linked List
+8)Find Middle of the Linked List
+9)Delete middle node of linked list
+10)Detect Loop or Cycle in Linked List
+11)Detect and Remove Loop in Linked List
 =============================================================
-10)Rotate a Linked List by K
+12)Rotate a Linked List by K
 13)Pairwise Swap Elements of a given Linked List
 14)Segregate even and odd nodes in a Linked List(use dummy nodes for estart(even start) and ostart(odd start))
 15)Find the sum of last n nodes of the given Linked List
 ===================REVERSE==========================================================
-5)Reverse the linked list?
-20)Reverse a sublist of linked list->reverse(head,m,n)
+16)Reverse the linked list?
+17)Reverse a sublist of linked list->reverse(head,m,n)
 Given the head of a singly linked list and two integers left and right where left <= right, 
 reverse the nodes of the list from position left to position right, and return the reversed list.
-21)Reverse a Linked List in groups of given size (Iterative Approach)
-28)Reverse Nodes in Even Length Groups(1,2,3,4...) need to reverse only the even ones i.e., 2, 4,...etc( use dummy node)
-29)Reverse Alternate K nodes in linked list?
-30)Reverse nodes at even positions in linked list?
+18)Reverse a Linked List in groups of given size (Iterative Approach)
+19)Reverse Nodes in Even Length Groups(1,2,3,4...) need to reverse only the even ones i.e., 2, 4,...etc( use dummy node)
+20)Reverse Alternate K nodes in linked list?
+21)Reverse nodes at even positions in linked list?
 ====================SWAP===================================================================
-17)Swap nodes in a linked list without swapping data
-27)Swap Kth node from beginning with Kth node from end in a Linked List
-31)Swap nodes in pairs in a linked list
+22)Swap nodes in a linked list without swapping data
+23)Swap Kth node from beginning with Kth node from end in a Linked List
+24)Swap nodes in pairs in a linked list
 Input: head = [1,2,3,4]
 Output: [2,1,4,3]
 ==================================================================================================================
-27)Palindrome Linked List
-28)Add two Linked lists
-18)Intersection point of two Linked Lists
-26)Intersection of two Sorted Linked Lists
-16)Merge two sorted linked lists
+25)Palindrome Linked List
+26)Add two Linked lists
+27)Intersection point of two Linked Lists
+28)Intersection of two Sorted Linked Lists
+29)Merge two sorted linked lists
 ===================================================================================================================
-19)Clone linked list with next and random pointer
-32) Implement LRU Cache using Doubly Linked list and hash
+30)Clone linked list with next and random pointer
+31) Implement LRU Cache using Doubly Linked list and hash
+32) Implement LFU Cache using Doubly linked list and hash
 
-22)Given a 2-D matrix. You need to convert it into a linked list matrix such that each node is linked to its next right and down node and display it.
-23)Segregate 0s and 1s in an array
-24)Segregate 0s, 1s and 2s in an array
+33)Given a 2-D matrix. You need to convert it into a linked list matrix such that each node is linked to its next right and down node and display it.
+34)Segregate 0s and 1s in an array
+35)Segregate 0s, 1s and 2s in an array
+
+===================================Doubly linked list==========================
+36)Insert a node at beginning/end/position in a doubly linked list?
+37)Delete a node at beginning/end/position in a doubly linked list?
+38)Reverse a doubly linked list?
 
 u=============================================================================================
 ============================================================================
@@ -605,4 +611,41 @@ struct Node* intersectPoint(struct Node* head1, struct Node* head2) {
         diff = len2 - len1;
         return getIntersectionByDiff(diff, head2, head1);
     }
+}
+==================================================================================
+  Initially, prevNode is set to NULL and currNode starts at the head.
+  As the list is traversed, 
+     Swap the currNode->next and currNode->prev
+     Move currNode to the next node, currNode = currNode->prev.
+After traversing all the nodes, prevNode will point to the second node of the reversed list,
+so update the previous pointer of prevNode as the new head of the linked list,
+head = prevNode->prev and return it.
+
+// Function to reverse a Doubly Linked List using two pointers
+struct Node *reverse(struct Node *head) {
+    if (head == NULL || head->next == NULL)
+        return head;
+
+    struct Node *prevNode = NULL;
+    struct Node *currNode = head;
+
+    // Traverse the list and reverse the links
+    while (currNode != NULL) {
+      
+        // Swap the next and prev pointers
+        prevNode = currNode->prev;
+        currNode->prev = currNode->next;
+        currNode->next = prevNode;
+
+        // Move to the next node in the original list 
+      	// (which is now previous due to reversal)
+        currNode = currNode->prev;
+    }
+
+    // The final node processed will be the new head
+    // Fix head pointer
+    if (prevNode != NULL)
+        head = prevNode->prev;
+
+    return head;
 }
