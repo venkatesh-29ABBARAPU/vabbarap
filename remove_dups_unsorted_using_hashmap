@@ -272,7 +272,41 @@ int main() {
     
     return 0;
 }
+=======================================================================================================================
+HashMap Structure:
++-----------+
+| buckets[] |  → Array of pointers to HashNode
++-----------+
+     |
+     ↓
++-----------+    +-----------+    +-----------+
+| Bucket 0  | → | Key: 30   | → | Key: 25   | → NULL
++-----------+    +-----------+    +-----------+
+| Bucket 1  | → NULL
++-----------+
+| Bucket 2  | → | Key: 17   | → NULL
++-----------+    +-----------+
+| Bucket 3  | → NULL
++-----------+
+| Bucket 4  | → NULL
++-----------+
 
+
+HashMap map:
+buckets[0] → 0x1000 (Address of node with key 30)
+buckets[1] → NULL
+buckets[2] → 0x2000 (Address of node with key 17)
+buckets[3] → NULL
+buckets[4] → NULL
+
+At address 0x1000:
+HashNode: {key: 30, next: 0x3000}
+
+At address 0x3000:
+HashNode: {key: 25, next: NULL}
+
+At address 0x2000:
+HashNode: {key: 17, next: NULL}
 
 =============================================================================================================================
 The `insert` function in the provided C program adds a key to a hash map, which is used to track unique values during the removal of duplicates from an unsorted linked list. Below, I’ll explain the function in detail, including its purpose, how it works, its role in the program, and provide an example with a diagram to illustrate the process.
