@@ -272,3 +272,248 @@ int main() {
     
     return 0;
 }
+
+
+=============================================================================================================================
+The `insert` function in the provided C program adds a key to a hash map, which is used to track unique values during the removal of duplicates from an unsorted linked list. Below, I’ll explain the function in detail, including its purpose, how it works, its role in the program, and provide an example with a diagram to illustrate the process.
+
+### Code Explanation
+Here’s the `insert` function with detailed comments:
+
+void insert(HashMap* map, int key) {
+    if (contains(map, key)) { // Check if key already exists in hash map
+        return; // Key already exists, no insertion needed
+    }
+    
+    int index = hash(key); // Compute hash index for the key
+    HashNode* newNode = (HashNode*)malloc(sizeof(HashNode)); // Allocate new hash node
+    newNode->key = key; // Set the key
+    newNode->next = map->buckets[index]; // Link to existing bucket list
+    map->buckets[index] = newNode; // Update bucket to point to new node
+}
+```
+
+#### Key Components
+- **HashMap Structure**:
+  ```c
+  typedef struct {
+      HashNode* buckets[HASH_SIZE];
+  } HashMap;
+  ```
+  - `buckets`: An array of `HashNode*` pointers, where `HASH_SIZE=1000`. Each bucket can hold a linked list of `HashNode`s to handle collisions.
+- **HashNode Structure**:
+  ```c
+  typedef struct HashNode {
+      int key;
+      struct HashNode* next;
+  } HashNode;
+  ```
+  - `key`: The value to store (from the linked list).
+  - `next`: Pointer to the next `HashNode` in the same bucket (for collision handling).
+- **Related Functions**:
+  - `contains`: Checks if a key exists in the hash map.
+  - `hash`: Computes the bucket index for a key (`abs(key) % HASH_SIZE`).
+- **Purpose**: Adds a new key to the hash map if it doesn’t already exist, ensuring only unique keys are stored.
+
+#### How It Works
+1. **Check for Existence**:
+   - Calls `contains(map, key)` to check if the key is already in the hash map.
+   - If the key exists, the function returns immediately to avoid duplicates (critical for the duplicate removal logic).
+2. **Compute Index**:
+   - Uses `hash(key)` to map the key to a bucket index (0 to `HASH_SIZE-1`).
+3. **Create New Node**:
+   - Allocates a new `HashNode` using `malloc`.
+   - Sets `newNode->key = key` to store the value.
+4. **Insert into Bucket**:
+   - Sets `newNode->next = map->buckets[index]`, linking the new node to the existing linked list in the bucket (or `NULL` if the bucket is empty).
+   - Updates `map->buckets[index] = newNode`, making the new node the head of the bucket’s linked list.
+5. **Effect**: The key is added to the hash map in O(1) average time, with chaining to handle collisions.
+
+#### Role in the Program
+The `insert` function is used in the `removeDuplicates` and `removeDuplicatesNewList` functions to track unique values from the linked list:
+- In `removeDuplicates`, it adds a node’s `data` to the hash map if it’s not already present, ensuring only the first occurrence of each value is kept.
+- In `removeDuplicatesNewList`, it adds values to the hash map and builds a new list with unique values.
+
+### Example Walkthrough
+Let’s walk through the `insert` function with a sample linked list: `4 -> 2 -> 5 -> 4`. The hash map is used to track unique values, and we’ll insert the 
+values `4`, `2`, `5`, and attempt to insert `4` again.
+
+**Initial State**:
+- Hash map after `initHashMap`:
+  ```
+  HashMap:
+  +---------------------------+
+  | buckets:                  |
+  | [0] ----> NULL            |
+  | [1] ----> NULL            |
+  | [2] ----> NULL            |
+  | ...                       |
+  | [999] --> NULL            |
+  +---------------------------+
+  ```
+- Assume `hash(4)=4`, `hash(2)=2`, `hash(5)=5` for simplicity.
+
+**Step 1: Insert `4`**:
+- Call: `insert(&map, 4)`
+- `contains(&map, 4)`: Returns `false` (bucket 4 is `NULL`).
+- `index = hash(4) = 4`.
+- Create `newNode`: `key=4`, `next=NULL`.
+- `newNode->next = map->buckets[4] (NULL)`.
+- `map->buckets[4] = newNode`.
+- **Hash Map**:
+  ```
+  HashMap:
+  +---------------------------+
+  | buckets:                  |
+  | [0] ----> NULL            |
+  | [1] ----> NULL            |
+  | [2] ----> NULL            |
+  | [3] ----> NULL            |
+  | [4] ----> [HashNode: key=4, next=NULL] |
+  | ...                       |
+  | [999] --> NULL            |
+  +---------------------------+
+  ```
+
+**Step 2: Insert `2`**:
+- Call: `insert(&map, 2)`
+- `contains(&map, 2)`: Returns `false`.
+- `index = hash(2) = 2`.
+- Create `newNode`: `key=2`, `next=NULL`.
+- `newNode->next = map->buckets[2] (NULL)`.
+- `map->buckets[2] = newNode`.
+- **Hash Map**:
+  ```
+  HashMap:
+  +---------------------------+
+  | buckets:                  |
+  | [0] ----> NULL            |
+  | [1] ----> NULL            |
+  | [2] ----> [HashNode: key=2, next=NULL] |
+  | [3] ----> NULL            |
+  | [4] ----> [HashNode: key=4, next=NULL] |
+  | ...                       |
+  | [999] --> NULL            |
+  +---------------------------+
+  ```
+
+**Step 3: Insert `5`**:
+- Call: `insert(&map, 5)`
+- `contains(&map, 5)`: Returns `false`.
+- `index = hash(5) = 5`.
+- Create `newNode`: `key=5`, `next=NULL`.
+- `newNode->next = map->buckets[5] (NULL)`.
+- `map->buckets[5] = newNode`.
+- **Hash Map**:
+  ```
+  HashMap:
+  +---------------------------+
+  | buckets:                  |
+  | [0] ----> NULL            |
+  | [1] ----> NULL            |
+  | [2] ----> [HashNode: key=2, next=NULL] |
+  | [3] ----> NULL            |
+  | [4] ----> [HashNode: key=4, next=NULL] |
+  | [5] ----> [HashNode: key=5, next=NULL] |
+  | ...                       |
+  | [999] --> NULL            |
+  +---------------------------+
+  ```
+
+**Step 4: Attempt to Insert `4`**:
+- Call: `insert(&map, 4)`
+- `contains(&map, 4)`: Returns `true` (found in `buckets[4]`).
+- Function returns immediately, no insertion occurs.
+- **Hash Map**: Unchanged.
+
+**Step 5: Insert `104` (Collision Example)**:
+- Assume `hash(104) = 4` (e.g., `abs(104) % 1000 = 4`).
+- Call: `insert(&map, 104)`
+- `contains(&map, 104)`: Returns `false` (no `key=104` in `buckets[4]`).
+- `index = hash(104) = 4`.
+- Create `newNode`: `key=104`, `next=map->buckets[4]` (points to `HashNode: key=4`).
+- `map->buckets[4] = newNode`.
+- **Hash Map**:
+  ```
+  HashMap:
+  +---------------------------+
+  | buckets:                  |
+  | [0] ----> NULL            |
+  | [1] ----> NULL            |
+  | [2] ----> [HashNode: key=2, next=NULL] |
+  | [3] ----> NULL            |
+  | [4] ----> [HashNode: key=104, next] --> [HashNode: key=4, next=NULL] |
+  | [5] ----> [HashNode: key=5, next=NULL] |
+  | ...                       |
+  | [999] --> NULL            |
+  +---------------------------+
+  ```
+
+### Diagram
+#### Initial Hash Map (after `initHashMap`):
+```
+HashMap:
++---------------------------+
+| buckets:                  |
+| [0] ----> NULL            |
+| [1] ----> NULL            |
+| [2] ----> NULL            |
+| [3] ----> NULL            |
+| [4] ----> NULL            |
+| [5] ----> NULL            |
+| ...                       |
+| [999] --> NULL            |
++---------------------------+
+```
+
+#### After Inserting `4`, `2`, `5`:
+```
+HashMap:
++---------------------------+
+| buckets:                  |
+| [0] ----> NULL            |
+| [1] ----> NULL            |
+| [2] ----> [HashNode: key=2, next=NULL] |
+| [3] ----> NULL            |
+| [4] ----> [HashNode: key=4, next=NULL] |
+| [5] ----> [HashNode: key=5, next=NULL] |
+| ...                       |
+| [999] --> NULL            |
++---------------------------+
+```
+
+#### After Inserting `104` (Collision at `hash(104)=4`):
+```
+HashMap:
++---------------------------+
+| buckets:                  |
+| [0] ----> NULL            |
+| [1] ----> NULL            |
+| [2] ----> [HashNode: key=2, next=NULL] |
+| [3] ----> NULL            |
+| [4] ----> [HashNode: key=104, next] --> [HashNode: key=4, next=NULL] |
+| [5] ----> [HashNode: key=5, next=NULL] |
+| ...                       |
+| [999] --> NULL            |
++---------------------------+
+```
+
+### Role in Duplicate Removal
+- **Context**: The `insert` function is called in `removeDuplicates` and `removeDuplicatesNewList` to add a linked list node’s `data` to the hash map when it’s encountered
+for the first time.
+- **Example**: For the list `4 -> 2 -> 5 -> 4`:
+  - `insert(&map, 4)`: Adds `4` to `buckets[4]`.
+  - `insert(&map, 2)`: Adds `2` to `buckets[2]`.
+  - `insert(&map, 5)`: Adds `5` to `buckets[5]`.
+  - Second `4`: `contains(&map, 4)` returns `true`, so `insert` returns without action, and the node is removed.
+- **Purpose**: Ensures only the first occurrence of each value is kept by tracking seen values in the hash map.
+
+### Key Points
+- **Purpose**: Adds a key to the hash map if it doesn’t exist, using chaining for collisions.
+- **Efficiency**: O(1) average-case time for insertion (assuming good hash distribution).
+- **Collision Handling**: Inserts at the head of the bucket’s linked list, supporting multiple keys per bucket.
+- **Role**: Tracks unique values to identify duplicates in the linked list.
+- **ARM Compatibility**: Standard C, runs on ARM or any architecture.
+
+The `insert` function is critical for efficiently building the hash map, enabling O(n) duplicate removal by ensuring only unique keys are stored and collisions are
+handled via linked lists. The diagram illustrates how the hash map evolves with each insertion.
