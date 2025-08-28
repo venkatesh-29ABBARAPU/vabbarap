@@ -1,0 +1,541 @@
+
+
+
+
+#include <stdlib.h>
+#include <stdio.h>
+
+void* aligned_malloc(size_t size, size_t alignment) {
+        printf("size=0x%x alignment=%d\n",size,alignment);
+    // Allocate enough memory to ensure we can align it
+    void* original = malloc(size + alignment - 1 + sizeof(void*));
+        printf("original=%p\n",original);
+    if (!original) return NULL;
+
+        void *temp = (size_t)original+sizeof(void*);
+        printf("temp=%p\n",temp);
+        void *temp1 = ((size_t)original+sizeof(void*)+alignment -1);
+        printf("temp1=%p\n",temp1);
+    // Align the memory
+    void* aligned = (void*)(((size_t)original + alignment - 1 + sizeof(void*)) & ~(alignment - 1));
+        printf("aligned=%p\n",aligned);
+
+        void *temp3 = aligned - sizeof(void*);
+        printf("temp3=%p\n",temp3);
+    // Store the original pointer just before the aligned memory
+    //((void**)aligned)[-1] = original;
+
+        *((void**)(aligned - sizeof(void*))) = original;
+
+        printf("aligned-1=%p\n",((void**)aligned)[-1]);
+    return aligned;
+}
+
+void aligned_free(void* aligned) {
+    if (aligned) {
+        // Retrieve the original pointer and free it
+        printf("aligned-free=%p\n",((void**)aligned)[-1]);
+       free(((void**)aligned)[-1]);
+      //  free(*(void**)aligned - sizeof(void*));
+       
+    }
+}
+
+int main() {
+    size_t alignment = 16;
+    size_t size = 100;
+    void* ptr = aligned_malloc(size, alignment);
+    if (ptr == NULL) {
+        printf("Error allocating aligned memory.\n");
+        return -1;
+    }
+
+    printf("Aligned memory address: %p\n", ptr);
+
+    aligned_free(ptr);
+    return 0;
+}
+
+ ./a.out
+size=0x64 alignment=16
+original=0x55bfe4a3d6b0
+temp=0x55bfe4a3d6b8
+temp1=0x55bfe4a3d6c7
+aligned=0x55bfe4a3d6c0
+temp3=0x55bfe4a3d6b8
+Aligned memory address: 0x55bfe4a3d6c0
+aligned-free=0x55bfe4a3d6b0
+
+===========================================================================================================================================================
+how to write a C program for an address which is 4byte aligned using modulo operator
+
+You can ensure a variable is 4-byte aligned in C using the modulo operator by adjusting the pointer to the next 4-byte boundary. Here's an example:
+#include <stdio.h>
+#include <stdlib.h>
+int main() {
+    // Allocate memory with some extra space for alignment
+    void *ptr = malloc(sizeof(int) + 3);
+    if (ptr == NULL) {
+        perror("malloc");
+        return 1;
+    }
+// Align the pointer to the next 4-byte boundary
+    void *aligned_ptr = (void*)(((uintptr_t)ptr + 3) & ~0x03);
+// Check if the aligned address is indeed 4-byte aligned
+    if ((uintptr_t)aligned_ptr % 4 == 0) {
+        printf("Aligned address: %p\n", aligned_ptr);
+    } else {
+        printf("Address is not aligned\n");
+    }
+// Free the original pointer
+    free(ptr);
+    return 0;
+}
+Explanation
+1. Memory Allocation: Allocate extra memory to ensure there is enough space to adjust the pointer for alignment.
+2. Alignment Calculation: Adjust the pointer to the next 4-byte boundary using the modulo operator and bitwise operations:
+• ((uintptr_t)ptr + 3) & ~0x03 ensures the address is a multiple of 4.
+3. Verification: Check if the aligned address is indeed 4-byte aligned by verifying that (uintptr_t)aligned_ptr % 4 == 0.
+
+The +3 is added to ensure that there is enough space to adjust the pointer to the next 4-byte boundary. Here's a detailed explanation:
+4. Memory Allocation: When you allocate memory with malloc, the returned pointer might not be aligned to a 4-byte boundary. By adding 3 extra bytes, you ensure that you have enough space to adjust the pointer to the next 4-byte aligned address.
+5. Alignment Adjustment: The adjustment is done using the following calculation:
+void *aligned_ptr = (void*)(((uintptr_t)ptr + 3) & ~0x03);
+
+This calculation ensures that the aligned_ptr is a multiple of 4. The +3 ensures that even if the original ptr is just 1, 2, or 3 bytes away from a 4-byte boundary, you have enough space to move it to the next aligned address.
+Example
+If ptr is at address 0x1001, adding 3 gives 0x1004, which is already aligned. If ptr is at 0x1002, adding 3 gives 0x1005, and the bitwise operation & ~0x03 adjusts it to 0x1004.
+This ensures that the aligned_ptr is always at a 4-byte boundary, which is crucial for efficient memory access on many systems.
+----------------------------------------------------------------------------------------------------------- 
+how to write a C program for an address which is 8byte aligned using modulo operator
+You can ensure a variable is 8-byte aligned in C using the modulo operator by adjusting the pointer to the next 8-byte boundary. Here's an example:
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+int main() {
+    // Allocate memory with some extra space for alignment
+    void *ptr = malloc(sizeof(int) + 7); // Allocate extra bytes for alignment
+    if (ptr == NULL) {
+        perror("malloc");
+        return 1;
+    }
+// Align the pointer to the next 8-byte boundary
+    void *aligned_ptr = (void*)(((uintptr_t)ptr + 7) & ~0x07);
+// Check if the aligned address is indeed 8-byte aligned
+    if ((uintptr_t)aligned_ptr % 8 == 0) {
+        printf("Aligned address: %p\n", aligned_ptr);
+    } else {
+        printf("Address is not aligned\n");
+    }
+// Free the original pointer
+    free(ptr);
+    return 0;
+}
+Explanation
+6. Memory Allocation: Allocate extra memory to ensure there is enough space to adjust the pointer for alignment.
+7. Alignment Calculation: Adjust the pointer to the next 8-byte boundary using the modulo operator and bitwise operations:
+void *aligned_ptr = (void*)(((uintptr_t)ptr + 7) & ~0x07);
+
+This calculation ensures that the aligned_ptr is a multiple of 8. The +7 ensures that even if the original ptr is just 1 to 7 bytes away from an 8-byte boundary, you have enough space to move it to the next aligned address.
+8. Verification: Check if the aligned address is indeed 8-byte aligned by verifying that (uintptr_t)aligned_ptr % 8 == 0.
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+void *aligned_ptr = (void*)(((uintptr_t)ptr + 7) & ~0x07); why 7 is added
+
+ 
+The +7 is added to ensure that there is enough space to adjust the pointer to the next 8-byte boundary. Here's a detailed explanation:
+9. Memory Allocation: When you allocate memory with malloc, the returned pointer might not be aligned to an 8-byte boundary. By adding 7 extra bytes, you ensure that you have enough space to adjust the pointer to the next 8-byte aligned address.
+10. Alignment Calculation: The adjustment is done using the following calculation:
+void *aligned_ptr = (void*)(((uintptr_t)ptr + 7) & ~0x07);
+
+This calculation ensures that the aligned_ptr is a multiple of 8. The +7 ensures that even if the original ptr is just 1 to 7 bytes away from an 8-byte boundary, you have enough space to move it to the next aligned address.
+Example
+If ptr is at address 0x1001, adding 7 gives 0x1008, which is aligned. If ptr is at 0x1002, adding 7 gives 0x1009, and the bitwise operation & ~0x07 adjusts it to 0x1008.
+This ensures that the aligned_ptr is always at an 8-byte boundary, which is crucial for efficient memory access on many systems.
+
+what if the ptr ia 1005 then the aligment for 8byte is
+
+If the pointer ptr is at address 0x1005, aligning it to the next 8-byte boundary involves the following steps:
+11. Add 7 to the Address: This ensures that you have enough space to move to the next 8-byte boundary.
+0x1005 + 7 = 0x100C
+12. Apply the Bitwise AND Operation: This clears the lower 3 bits to align the address to an 8-byte boundary.
+0x100C & ~0x07 = 0x1008
+So, if ptr is at 0x1005, the aligned address would be 0x1008.
+Here's how you can do this in code:
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+int main() {
+    uintptr_t ptr = 0x1005; // Example address
+    uintptr_t aligned_ptr = (ptr + 7) & ~0x07;
+printf("Original address: %p\n", (void*)ptr);
+    printf("Aligned address: %p\n", (void*)aligned_ptr);
+return 0;
+}
+This code will output:
+Original address: 0x1005
+Aligned address: 0x1008
+
+what if the ptr ia 1009 then the aligment for 8byte is
+
+If a pointer is at address 1009 and you need it to be aligned for an 8-byte boundary, you would need to adjust the address to the next multiple of 8.
+Since 1009 is not a multiple of 8, the next multiple of 8 is 1016. Therefore, the pointer would need to be adjusted to 1016 to be properly aligned for 8-byte access
+
+Range will be: 1008 - 1016 for the addresses 1009,1010,1011,1012,1013,1014,1015 we get the aligned address as1016
+
+how to implement aligned_malloc in C
+To implement aligned_malloc in C, you can follow these steps:
+13. Calculate the total memory needed: This includes the requested size, the alignment padding, and space to store the original pointer.
+14. Allocate the memory: Use malloc to allocate the total memory.
+15. Align the pointer: Adjust the pointer to the next aligned address.
+16. Store the original pointer: Save the original pointer before the aligned address so it can be freed later.
+Here's a sample implementation:
+#include <stdlib.h>
+#include <stdint.h>
+void* aligned_malloc(size_t size, size_t alignment) {
+    // Ensure alignment is a power of two
+    if ((alignment & (alignment - 1)) != 0) {
+        return NULL;
+    }
+// Allocate enough memory to store the original pointer and the aligned pointer
+    void* original = malloc(size + alignment - 1 + sizeof(void*));
+    if (!original) {
+        return NULL;
+    }
+// Align the pointer
+    uintptr_t aligned = (uintptr_t)original + sizeof(void*);
+    aligned = (aligned + alignment - 1) & ~(alignment - 1);
+// Store the original pointer just before the aligned pointer
+    ((void**)aligned)[-1] = original;
+return (void*)aligned;
+}
+void aligned_free(void* ptr) {
+    if (ptr) {
+        free(((void**)ptr)[-1]);
+    }
+}
+Explanation:
+• Alignment Check: Ensure the alignment is a power of two.
+• Memory Allocation: Allocate enough memory to accommodate the alignment and the original pointer.
+• Pointer Adjustment: Adjust the pointer to the next aligned address.
+• Store Original Pointer: Save the original pointer just before the aligned address for proper deallocation.
+This implementation ensures that the allocated memory is correctly aligned and can be freed without issues.
+Would you like more details or have any specific questions about this implementation?
+why we need these extra void* original = malloc(size + alignment - 1 + sizeof(void*));
+Great question! The extra memory allocation in void* original = malloc(size + alignment - 1 + sizeof(void*)); is necessary for a few reasons:
+17. Alignment Padding: The alignment - 1 part ensures that there is enough space to adjust the pointer to the next aligned address. Without this padding, the pointer might not have enough room to be aligned correctly.
+18. Storing the Original Pointer: The sizeof(void*) part is used to store the original pointer just before the aligned address. This is crucial because when you call aligned_free, you need to free the original pointer, not the aligned one. By storing the original pointer, you can retrieve it later for proper deallocation.
+Here's a breakdown of the allocation:
+• size: The actual size of the memory requested.
+• alignment - 1: Extra space to ensure the pointer can be aligned.
+• sizeof(void*): Space to store the original pointer.
+This ensures that the memory block is large enough to accommodate the alignment requirements and allows for proper memory management.
+Would you like to see an example of how this works in practice?
+Yes, please show an example.
+Sure! Here's an example of how you can use the aligned_malloc and aligned_free functions:
+#include <stdio.h>
+#include <stdlib.h>
+// Function declarations
+void* aligned_malloc(size_t size, size_t alignment);
+void aligned_free(void* ptr);
+int main() {
+    size_t size = 100; // Size of the memory block
+    size_t alignment = 16; // Desired alignment
+// Allocate aligned memory
+    void* ptr = aligned_malloc(size, alignment);
+    if (ptr == NULL) {
+        printf("Memory allocation failed\n");
+        return 1;
+    }
+// Use the allocated memory
+    printf("Allocated memory at address: %p\n", ptr);
+// Free the allocated memory
+    aligned_free(ptr);
+return 0;
+}
+// Function definitions
+void* aligned_malloc(size_t size, size_t alignment) {
+    if ((alignment & (alignment - 1)) != 0) {
+        return NULL;
+    }
+void* original = malloc(size + alignment - 1 + sizeof(void*));
+    if (!original) {
+        return NULL;
+    }
+uintptr_t aligned = (uintptr_t)original + sizeof(void*);
+    aligned = (aligned + alignment - 1) & ~(alignment - 1);
+((void**)aligned)[-1] = original;
+return (void*)aligned;
+}
+void aligned_free(void* ptr) {
+    if (ptr) {
+        free(((void**)ptr)[-1]);
+    }
+}
+Explanation:
+19. Memory Allocation: The aligned_malloc function allocates a block of memory with the specified alignment.
+20. Pointer Adjustment: The pointer is adjusted to the next aligned address.
+21. Memory Usage: The allocated memory can be used as needed.
+22. Memory Deallocation: The aligned_free function frees the allocated memory by retrieving the original pointer.
+In this example, we allocate a 100-byte block of memory aligned to a 16-byte boundary. The address of the allocated memory is printed, and then the memory is freed.
+
+void* original = malloc(size + alignment - 1 + sizeof(void*)); why we need sizeof(void*) here
+The sizeof(void*) is included in the allocation to store the original pointer before the aligned address. This is crucial for proper memory management. Here's why:
+23. Storing the Original Pointer: When you align the pointer, you lose the reference to the original memory block allocated by malloc. To free the memory correctly later, you need to keep track of this original pointer. By storing it just before the aligned address, you can retrieve it when calling aligned_free.
+24. Memory Deallocation: When you call aligned_free, you need to free the original pointer, not the aligned one. The sizeof(void*) ensures there is space to store this original pointer, allowing you to access it and free the memory correctly.
+Here's a visual representation:
+|-------------------------|-------------------------|-------------------------|
+| Original Pointer        | Aligned Memory          |                         |
+| (sizeof(void*))         | (size)                  |                         |
+|-------------------------|-------------------------|-------------------------|
+In this layout:
+• The original pointer is stored in the first sizeof(void*) bytes.
+• The aligned memory starts after this space and is adjusted to the next aligned address.
+This way, you can always retrieve the original pointer and free the memory correctly.
+Does this help clarify why sizeof(void*) is needed? If you have more questions, feel free to ask!
+
+
+void* original = malloc(size + alignment - 1 + sizeof(void*)); why we need aligment -1 here
+The alignment - 1 part in the allocation void* original = malloc(size + alignment - 1 + sizeof(void*)); is used to ensure that there is enough space to adjust the pointer to the next aligned address. Here's why it's necessary:
+25. Alignment Adjustment: When you allocate memory, the starting address might not be aligned to the desired boundary. By adding alignment - 1, you ensure that there is enough extra space to move the pointer forward to the next aligned address.
+26. Guaranteeing Alignment: This extra space allows you to round up the address to the nearest multiple of the alignment. Without this padding, the pointer might not have enough room to be adjusted correctly.
+Example:
+Let's say you want to align to a 16-byte boundary, and the allocated address is 1009. The next multiple of 16 is 1024. To ensure you can move the pointer from 1009 to 1024, you need an extra 15 bytes (16 - 1) of padding.
+Here's a visual representation:
+|-------------------------|-------------------------|-------------------------|
+| Original Pointer        | Padding (alignment - 1) | Aligned Memory          |
+| (sizeof(void*))         |                         | (size)                  |
+|-------------------------|-------------------------|-------------------------|
+In this layout:
+• The padding ensures that you can adjust the pointer to the next aligned address.
+• The aligned memory starts after this space and is adjusted to the next aligned address.
+This way, you can always align the pointer correctly, regardless of the initial address returned by malloc.
+Does this help clarify why alignment - 1 is needed? If you have more questions, feel free to ask!
+
+======================================================================================================================
+
+void* aligned = (void*)(((size_t)original + sizeof(void*) + alignment - 1) & ~(alignment - 1));
+is used to compute an aligned memory address from an original pointer obtained via malloc. Let's break down this operation with a concrete example.
+
+Example:
+Suppose you have:
+	• original: A pointer returned by malloc, let's assume its address is 0x1002 (hexadecimal).
+	• alignment: Desired alignment, say 16 bytes.
+
+Step-by-Step Calculation:
+Cast original to size_t:
+	• (size_t)original = 0x1002
+
+Add sizeof(void*): Assuming sizeof(void*) is 8 bytes:
+	• 0x1002 + 8 = 0x100A
+
+Add alignment - 1:
+	• 0x100A + (16 - 1) = 0x100A + 15(0xF) = 0x1019
+Compute the alignment mask:
+	alignment - 1 = 16 - 1 = 15 (0x0F in hex) 
+	• ~(alignment - 1) = ~0x0F = 0xFFFFFFF0
+	Apply the mask to align the address:
+		0x1019 & 0xFFFFFFF0 = 0x1010
+		
+	Cast back to void*:
+		aligned = (void*)0x1010
+		
+		The aligned pointer now points to address 0x1010, which is aligned to a 16-byte boundary.
+		
+	Explanation:
+		• Adding sizeof(void*) ensures there's space to store the original pointer for proper deallocation later.
+		• Adding alignment - 1 guarantees that even if the original address is just below an alignment boundary, there's enough space to adjust it upwards.
+		• The bitwise AND with ~(alignment - 1) clears the lower bits, effectively rounding down to the nearest aligned address.
+	
+	
+	=====================================================================================================================
+((void**)aligned)[-1] = original; can you give the example how the original address is stored
+
+ 
+Sure! Let's go through an example to see how the original address is stored just before the aligned address.
+Example:
+Let's assume:
+• The original pointer returned by malloc is at address 1000.
+• The desired alignment is 16 bytes.
+• sizeof(void*) is 8 bytes.
+Steps:
+27. Allocate Memory:
+void* original = malloc(size + alignment - 1 + sizeof(void*));
+
+Let's say original is 1000.
+28. Calculate Aligned Address:
+uintptr_t aligned = (uintptr_t)original + sizeof(void*) + alignment - 1;
+aligned = aligned & ~(alignment - 1);
+• original + sizeof(void*) + alignment - 1 = 1000 + 8 + 15 = 1023.
+• Aligning 1023 to the next multiple of 16 gives aligned = 1024.
+29. Store Original Pointer:
+((void**)aligned)[-1] = original;
+• aligned is 1024.
+• ((void**)aligned)[-1] accesses the memory just before 1024.
+• ((void**)aligned)[-1] is equivalent to ((void**)1024)[-1], which is ((void**)1016)[0].
+• This stores the original pointer (1000) at address 1016.
+Visual Representation:
+| Address | Value       |
+|---------|-------------|
+| 1000    | ...         |
+| 1008    | ...         |
+| 1016    | 1000 (original) |
+| 1024    | Aligned Memory |
+In this example:
+• The original pointer (1000) is stored at address 1016.
+• The aligned memory starts at address 1024.
+This way, when you call aligned_free, you can retrieve the original pointer from ((void**)ptr)[-1] and free it correctly.
+
+Example:
+Let's assume:
+• The original pointer returned by malloc is at address 0x3E8 (1000 in decimal).
+• The desired alignment is 16 bytes.
+• sizeof(void*) is 8 bytes.
+Steps:
+30. Allocate Memory:
+void* original = malloc(size + alignment - 1 + sizeof(void*));
+
+Let's say original is 0x3E8.
+31. Calculate Aligned Address:
+uintptr_t aligned = (uintptr_t)original + sizeof(void*) + alignment - 1;
+aligned = aligned & ~(alignment - 1);
+• original + sizeof(void*) + alignment - 1 = 0x3E8 + 0x8 + 0xF = 0x405.
+• Aligning 0x405 to the next multiple of 16 gives aligned = 0x410.
+32. Store Original Pointer:
+((void**)aligned)[-1] = original;
+• aligned is 0x410.
+• ((void**)aligned)[-1] accesses the memory just before 0x410.
+• ((void**)aligned)[-1] is equivalent to ((void**)0x410)[-1], which is ((void**)0x408)[0].
+• This stores the original pointer (0x3E8) at address 0x408.
+Visual Representation:
+| Address | Value       |
+|---------|-------------|
+| 0x3E8   | ...         |
+| 0x3F0   | ...         |
+| 0x408   | 0x3E8 (original) |
+| 0x410   | Aligned Memory |
+In this example:
+• The original pointer (0x3E8) is stored at address 0x408.
+• The aligned memory starts at address 0x410.
+This way, when you call aligned_free, you can retrieve the original pointer from ((void**)ptr)[-1] and free it correctly.
+Let's break down the expression ((void**)aligned)[-1] to understand how it translates to ((void**)0x408)[0].
+Explanation:
+33. Aligned Address:
+• aligned is 0x410.
+34. Pointer Arithmetic:
+• ((void**)aligned)[-1] means accessing the memory location one void* size before aligned.
+• Since sizeof(void*) is 8 bytes, aligned - 1 * sizeof(void*) is 0x410 - 0x8 = 0x408.
+35. Dereferencing:
+• ((void**)0x410)[-1] is equivalent to ((void**)0x408)[0].
+• This means accessing the value stored at address 0x408.
+Visual Representation:
+| Address | Value       |
+|---------|-------------|
+| 0x3E8   | ...         |
+| 0x3F0   | ...         |
+| 0x408   | 0x3E8 (original) |
+| 0x410   | Aligned Memory |
+In this layout:
+• aligned is 0x410.
+• ((void**)aligned)[-1] accesses the memory at 0x408.
+• ((void**)0x408)[0] dereferences the pointer at 0x408, which holds the original address 0x3E8.
+So, ((void**)aligned)[-1] is equivalent to ((void**)0x408)[0] because it accesses the memory location just before the aligned address and retrieves the stored original pointer.
+=============================================================================================================================
+How to write this ((void**)aligned)[-1] = original; using single pointer
+To store the original pointer using a single pointer, you can use pointer arithmetic directly without casting to a double pointer. Here's how you can do it:
+uintptr_t aligned = (uintptr_t)original + sizeof(void*) + alignment - 1;
+aligned = aligned & ~(alignment - 1);
+// Store the original pointer just before the aligned address
+*((void**)(aligned - sizeof(void*))) = original;
+Explanation:
+36. Calculate Aligned Address:
+uintptr_t aligned = (uintptr_t)original + sizeof(void*) + alignment - 1;
+aligned = aligned & ~(alignment - 1);
+
+This part remains the same as before, calculating the aligned address.
+37. Store Original Pointer:
+*((void**)(aligned - sizeof(void*))) = original;
+• aligned - sizeof(void*) calculates the address just before the aligned address.
+• *((void**)(aligned - sizeof(void*))) dereferences this address and stores the original pointer there.
+Visual Representation:
+| Address | Value       |
+|---------|-------------|
+| 0x3E8   | ...         |
+| 0x3F0   | ...         |
+| 0x408   | 0x3E8 (original) |
+| 0x410   | Aligned Memory |
+In this layout:
+• The original pointer (0x3E8) is stored at address 0x408.
+• The aligned memory starts at address 0x410.
+This approach uses a single pointer to store the original address just before the aligned address, ensuring proper memory management.
+
+why we use double pointer here *((void**)(aligned - sizeof(void*))) = original;
+We use a double pointer *((void**)(aligned - sizeof(void*))) = original; to store the original pointer just before the aligned address. Here's why:
+38. Pointer Arithmetic: When you calculate aligned - sizeof(void*), you get the address just before the aligned address. This is where you want to store the original pointer.
+39. Dereferencing: By casting to void**, you are treating the address aligned - sizeof(void*) as a pointer to a void*. This allows you to store the original pointer at that location.
+Example in Hexadecimal:
+Let's assume:
+• The original pointer returned by malloc is at address 0x3E8 (1000 in decimal).
+• The desired alignment is 16 bytes.
+• sizeof(void*) is 8 bytes.
+Steps:
+40. Calculate Aligned Address:
+uintptr_t aligned = (uintptr_t)original + sizeof(void*) + alignment - 1;
+aligned = aligned & ~(alignment - 1);
+• original + sizeof(void*) + alignment - 1 = 0x3E8 + 0x8 + 0xF = 0x405.
+• Aligning 0x405 to the next multiple of 16 gives aligned = 0x410.
+41. Store Original Pointer:
+*((void**)(aligned - sizeof(void*))) = original;
+• aligned is 0x410.
+• aligned - sizeof(void*) is 0x410 - 0x8 = 0x408.
+• *((void**)0x408) stores the original pointer (0x3E8) at address 0x408.
+Visual Representation:
+| Address | Value       |
+|---------|-------------|
+| 0x3E8   | ...         |
+| 0x3F0   | ...         |
+| 0x408   | 0x3E8 (original) |
+| 0x410   | Aligned Memory |
+In this layout:
+• The original pointer (0x3E8) is stored at address 0x408.
+• The aligned memory starts at address 0x410.
+Using a double pointer allows you to store and later retrieve the original pointer for proper memory deallocation. This ensures that the memory can be freed correctly when you call aligned_free.
+=========================================================================================================================
+why cant we use single (void*) pointer here *((void**)(aligned - sizeof(void*))) = original;
+
+ The reason we use a double pointer *((void**)(aligned - sizeof(void*))) = original; instead of a single void* pointer is due to how pointer arithmetic and dereferencing work in C.
+Key Points:
+42. Pointer Arithmetic:
+• When you perform arithmetic on a void* pointer, the compiler doesn't know the size of the objects the pointer is supposed to point to, because void has no size. This makes it impossible to correctly calculate the address for storing the original pointer.
+• By casting to void**, you inform the compiler that you are dealing with pointers to void*, which have a known size (typically the size of a pointer, e.g., 8 bytes on a 64-bit system).
+43. Dereferencing:
+• Dereferencing a void* pointer directly is not allowed because the compiler doesn't know the type of the object being pointed to. You need to cast it to a specific type before dereferencing.
+• By using void**, you can dereference the pointer to store the original void* pointer at the calculated address.
+Example in Hexadecimal:
+Let's assume:
+• The original pointer returned by malloc is at address 0x3E8 (1000 in decimal).
+• The desired alignment is 16 bytes.
+• sizeof(void*) is 8 bytes.
+Steps:
+44. Calculate Aligned Address:
+uintptr_t aligned = (uintptr_t)original + sizeof(void*) + alignment - 1;
+aligned = aligned & ~(alignment - 1);
+• original + sizeof(void*) + alignment - 1 = 0x3E8 + 0x8 + 0xF = 0x405.
+• Aligning 0x405 to the next multiple of 16 gives aligned = 0x410.
+45. Store Original Pointer:
+*((void**)(aligned - sizeof(void*))) = original;
+• aligned is 0x410.
+• aligned - sizeof(void*) is 0x410 - 0x8 = 0x408.
+• *((void**)0x408) stores the original pointer (0x3E8) at address 0x408.
+Visual Representation:
+| Address | Value       |
+|---------|-------------|
+| 0x3E8   | ...         |
+| 0x3F0   | ...         |
+| 0x408   | 0x3E8 (original) |
+| 0x410   | Aligned Memory |
+In this layout:
+• The original pointer (0x3E8) is stored at address 0x408.
+• The aligned memory starts at address 0x410.
+Using a double pointer allows you to store and later retrieve the original pointer for proper memory deallocation. This ensures that the memory can be freed 
+correctly when you call aligned_free.
