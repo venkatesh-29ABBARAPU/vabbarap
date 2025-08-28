@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define HASH_SIZE 1000
+#define HASH_SIZE 100
 
 // Linked list node structure
 typedef struct ListNode {
