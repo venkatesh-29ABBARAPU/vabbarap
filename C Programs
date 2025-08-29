@@ -58,7 +58,8 @@ Output: [2,1,4,3]
 40)Remove duplicates in sorted linked list II?
 41)Remove duplicates in unsorted linked list?
 42)Partition linked list?
-43)Delete a Node from linked list without head pointer
+43)Delete a Node from linked list without head pointer?
+44)Linked list frequency using Hashmap?
 
 
 u=============================================================================================
@@ -655,4 +656,313 @@ struct Node *reverse(struct Node *head) {
         head = prevNode->prev;
 
     return head;
+}
+============================================================================================================================
+LINKED LIST FREQUENCY:
+#include <stdio.h>
+#include <stdlib.h>
+
+#define HASH_SIZE 100
+
+// Linked list node structure
+typedef struct ListNode {
+    int data;
+    struct ListNode* next;
+} ListNode;
+
+// Hash table node structure (stores key-frequency pairs)
+typedef struct HashNode {
+    int key;
+    int frequency;
+    struct HashNode* next;
+} HashNode;
+
+// Hash table structure
+typedef struct {
+    HashNode* buckets[HASH_SIZE];
+} HashMap;
+
+// Hash function
+int hash(int key) {
+    return abs(key) % HASH_SIZE;
+}
+
+// Initialize hash map
+void initHashMap(HashMap* map) {
+    for (int i = 0; i < HASH_SIZE; i++) {
+        map->buckets[i] = NULL;
+    }
+}
+
+// Insert or increment frequency in hash map
+void insertOrIncrement(HashMap* map, int key) {
+    int index = hash(key);
+    HashNode* current = map->buckets[index];
+    
+    // Check if key already exists
+    while (current != NULL) {
+        if (current->key == key) {
+            current->frequency++;  // Increment existing frequency
+            return;
+        }
+        current = current->next;
+    }
+    
+    // Key doesn't exist, create new node with frequency 1
+    HashNode* newNode = (HashNode*)malloc(sizeof(HashNode));
+    newNode->key = key;
+    newNode->frequency = 1;
+    newNode->next = map->buckets[index];
+    map->buckets[index] = newNode;
+}
+
+// Get frequency of a key
+int getFrequency(HashMap* map, int key) {
+    int index = hash(key);
+    HashNode* current = map->buckets[index];
+    
+    while (current != NULL) {
+        if (current->key == key) {
+            return current->frequency;
+        }
+        current = current->next;
+    }
+    return 0; // Key not found
+}
+
+// Print all frequencies in hash map
+void printFrequencies(HashMap* map) {
+    printf("Element frequencies:\n");
+    printf("-------------------\n");
+    
+    for (int i = 0; i < HASH_SIZE; i++) {
+        HashNode* current = map->buckets[i];
+        while (current != NULL) {
+            printf("Element %d: appears %d time(s)\n", 
+                   current->key, current->frequency);
+            current = current->next;
+        }
+    }
+}
+
+// Print frequencies in order of appearance in original list
+void printFrequenciesInOrder(HashMap* map, ListNode* head) {
+    printf("Element frequencies (in order of first appearance):\n");
+    printf("--------------------------------------------------\n");
+    
+    // Use a simple array to track already printed elements
+    int printed[1000] = {0}; // Assumes elements are in reasonable range
+    int printedCount = 0;
+    
+    ListNode* current = head;
+    while (current != NULL) {
+        // Check if we've already printed this element
+        int alreadyPrinted = 0;
+        for (int i = 0; i < printedCount; i++) {
+            if (printed[i] == current->data) {
+                alreadyPrinted = 1;
+                break;
+            }
+        }
+        
+        if (!alreadyPrinted) {
+            int freq = getFrequency(map, current->data);
+            printf("Element %d: appears %d time(s)\n", current->data, freq);
+            printed[printedCount++] = current->data;
+        }
+        
+        current = current->next;
+    }
+}
+
+// Free hash map memory
+void freeHashMap(HashMap* map) {
+    for (int i = 0; i < HASH_SIZE; i++) {
+        HashNode* current = map->buckets[i];
+        while (current != NULL) {
+            HashNode* temp = current;
+            current = current->next;
+            free(temp);
+        }
+        map->buckets[i] = NULL;
+    }
+}
+
+// Create a new list node
+ListNode* createNode(int data) {
+    ListNode* newNode = (ListNode*)malloc(sizeof(ListNode));
+    newNode->data = data;
+    newNode->next = NULL;
+    return newNode;
+}
+
+// Insert at the end of linked list
+void insertAtTail(ListNode** head, int data) {
+    ListNode* newNode = createNode(data);
+    
+    if (*head == NULL) {
+        *head = newNode;
+        return;
+    }
+    
+    ListNode* current = *head;
+    while (current->next != NULL) {
+        current = current->next;
+    }
+    current->next = newNode;
+}
+
+// Print linked list
+void printList(ListNode* head) {
+    printf("Linked List: ");
+    ListNode* current = head;
+    while (current != NULL) {
+        printf("%d ", current->data);
+        current = current->next;
+    }
+    printf("\n");
+}
+
+// Free linked list memory
+void freeList(ListNode* head) {
+    ListNode* current = head;
+    while (current != NULL) {
+        ListNode* temp = current;
+        current = current->next;
+        free(temp);
+    }
+}
+
+// Main function to count frequencies of linked list elements
+void countFrequencies(ListNode* head) {
+    if (head == NULL) {
+        printf("Empty list - no frequencies to count.\n");
+        return;
+    }
+    
+    HashMap freqMap;
+    initHashMap(&freqMap);
+    
+    // Traverse linked list and build frequency map
+    ListNode* current = head;
+    while (current != NULL) {
+        insertOrIncrement(&freqMap, current->data);
+        current = current->next;
+    }
+    
+    // Print results
+    printFrequenciesInOrder(&freqMap, head);
+    
+    printf("\nHashMap bucket distribution:\n");
+    printFrequencies(&freqMap);
+    
+    freeHashMap(&freqMap);
+}
+
+// Find the most frequent element
+int findMostFrequent(ListNode* head) {
+    if (head == NULL) {
+        printf("Empty list!\n");
+        return -1;
+    }
+    
+    HashMap freqMap;
+    initHashMap(&freqMap);
+    
+    // Build frequency map
+    ListNode* current = head;
+    while (current != NULL) {
+        insertOrIncrement(&freqMap, current->data);
+        current = current->next;
+    }
+    
+    // Find element with maximum frequency
+    int maxFreq = 0;
+    int mostFrequent = -1;
+    
+    for (int i = 0; i < HASH_SIZE; i++) {
+        HashNode* node = freqMap.buckets[i];
+        while (node != NULL) {
+            if (node->frequency > maxFreq) {
+                maxFreq = node->frequency;
+                mostFrequent = node->key;
+            }
+            node = node->next;
+        }
+    }
+    
+    freeHashMap(&freqMap);
+    printf("Most frequent element: %d (appears %d times)\n", 
+           mostFrequent, maxFreq);
+    return mostFrequent;
+}
+
+int main() {
+    // Test 1: Basic frequency counting
+    printf("=== Test 1: Basic Frequency Counting ===\n");
+    ListNode* list1 = NULL;
+    
+    // Create list: 1 -> 2 -> 3 -> 2 -> 1 -> 4 -> 2 -> 5 -> 1
+    int data1[] = {1, 2, 3, 2, 1, 4, 2, 5, 1};
+    int n1 = sizeof(data1) / sizeof(data1[0]);
+    
+    for (int i = 0; i < n1; i++) {
+        insertAtTail(&list1, data1[i]);
+    }
+    
+    printList(list1);
+    countFrequencies(list1);
+    printf("\n");
+    findMostFrequent(list1);
+    
+    freeList(list1);
+    
+    // Test 2: All same elements
+    printf("\n=== Test 2: All Same Elements ===\n");
+    ListNode* list2 = NULL;
+    
+    for (int i = 0; i < 6; i++) {
+        insertAtTail(&list2, 7);
+    }
+    
+    printList(list2);
+    countFrequencies(list2);
+    printf("\n");
+    findMostFrequent(list2);
+    
+    freeList(list2);
+    
+    // Test 3: All unique elements
+    printf("\n=== Test 3: All Unique Elements ===\n");
+    ListNode* list3 = NULL;
+    
+    int data3[] = {10, 20, 30, 40, 50};
+    int n3 = sizeof(data3) / sizeof(data3[0]);
+    
+    for (int i = 0; i < n3; i++) {
+        insertAtTail(&list3, data3[i]);
+    }
+    
+    printList(list3);
+    countFrequencies(list3);
+    printf("\n");
+    findMostFrequent(list3);
+    
+    freeList(list3);
+    
+    // Test 4: Empty list
+    printf("\n=== Test 4: Empty List ===\n");
+    ListNode* emptyList = NULL;
+    countFrequencies(emptyList);
+    
+    // Test 5: Single element
+    printf("\n=== Test 5: Single Element ===\n");
+    ListNode* singleList = createNode(99);
+    printList(singleList);
+    countFrequencies(singleList);
+    findMostFrequent(singleList);
+    
+    freeList(singleList);
+    
+    return 0;
 }
