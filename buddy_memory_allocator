@@ -1,3 +1,183 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+// Define constants
+#define MAX_ORDER 10 // Maximum order (2^10 = 1024 bytes)
+#define MIN_ORDER 4  // Minimum order (2^4 = 16 bytes)
+#define MEMORY_SIZE (1 << MAX_ORDER) // Total memory size (1024 bytes)
+
+// Node structure for free list
+typedef struct Block {
+    int order;           // Power of 2 for block size
+    int is_free;         // 1 if free, 0 if allocated
+    struct Block* next;  // Next block in the free list
+} Block;
+
+// Global variables
+static char memory[MEMORY_SIZE]; // Memory pool
+static Block* free_lists[MAX_ORDER + 1]; // Free lists for each order
+
+// Initialize the buddy allocator
+void init_buddy_allocator() {
+    for (int i = 0; i <= MAX_ORDER; i++) {
+        free_lists[i] = NULL;
+    }
+
+    // Initialize the entire memory as one large free block
+    Block* initial_block = (Block*)memory;
+    initial_block->order = MAX_ORDER;
+    initial_block->is_free = 1;
+    initial_block->next = NULL;
+    free_lists[MAX_ORDER] = initial_block;
+}
+
+// Find the smallest order that can satisfy the request
+int get_order(size_t size) {
+    int order = MIN_ORDER;
+    while ((1 << order) < size) {
+        order++;
+    }
+    return order;
+}
+
+// Split a block into two buddies
+void split_block(int order) {
+    if (order <= MIN_ORDER) return;
+
+    // Find a free block in the current order
+    Block* block = free_lists[order];
+    if (!block) return;
+
+    // Remove the block from the current free list
+    free_lists[order] = block->next;
+
+    // Split into two buddies
+    block->order = order - 1;
+    block->is_free = 1;
+
+    Block* buddy = (Block*)((char*)block + (1 << (order - 1)));
+    buddy->order = order - 1;
+    buddy->is_free = 1;
+    buddy->next = NULL;
+
+    // Add both buddies to the free list of the lower order
+    block->next = buddy;
+    free_lists[order - 1] = block;
+}
+
+// Allocate memory
+void* buddy_alloc(size_t size) {
+    if (size == 0 || size > MEMORY_SIZE) return NULL;
+
+    // Find the appropriate order
+    int order = get_order(size);
+    if (order > MAX_ORDER) return NULL;
+
+    // Find a free block
+    int current_order = order;
+    while (current_order <= MAX_ORDER && !free_lists[current_order]) {
+        current_order++;
+    }
+
+    if (current_order > MAX_ORDER) return NULL;
+
+    // Split blocks until we get the desired order
+    while (current_order > order) {
+        split_block(current_order);
+        current_order--;
+    }
+
+    // Allocate the block
+    Block* block = free_lists[order];
+    if (!block) return NULL;
+
+    free_lists[order] = block->next;
+    block->is_free = 0;
+    return (void*)block;
+}
+
+// Find the buddy of a block
+Block* get_buddy(Block* block) {
+    size_t offset = (char*)block - memory;
+    size_t buddy_offset = offset ^ (1 << block->order);
+    return (Block*)(memory + buddy_offset);
+}
+
+// Merge buddies if both are free
+void merge_blocks(Block* block) {
+    int order = block->order;
+    while (order < MAX_ORDER) {
+        Block* buddy = get_buddy(block);
+        if (!buddy->is_free || buddy->order != order) break;
+
+        // Remove buddy from its free list
+        Block* prev = free_lists[order];
+        if (prev == buddy) {
+            free_lists[order] = buddy->next;
+        } else {
+            while (prev && prev->next != buddy) {
+                prev = prev->next;
+            }
+            if (prev) prev->next = buddy->next;
+        }
+
+        // Merge into a larger block
+        if ((char*)buddy < (char*)block) {
+            block = buddy;
+        }
+        block->order = order + 1;
+        order++;
+    }
+
+    // Add the merged block to the free list
+    block->is_free = 1;
+    block->next = free_lists[order];
+    free_lists[order] = block;
+}
+
+// Deallocate memory
+void buddy_free(void* ptr) {
+    if (!ptr || ptr < (void*)memory || ptr >= (void*)(memory + MEMORY_SIZE)) return;
+
+    Block* block = (Block*)ptr;
+    block->is_free = 1;
+
+    // Add to free list and attempt to merge
+    block->next = free_lists[block->order];
+    free_lists[block->order] = block;
+
+    merge_blocks(block);
+}
+
+// Example usage
+int main() {
+    init_buddy_allocator();
+
+    // Allocate memory
+    void* ptr1 = buddy_alloc(32);  // Should allocate a 32-byte block
+    printf("Allocated 32 bytes at %p\n", ptr1);
+
+    void* ptr2 = buddy_alloc(64);  // Should allocate a 64-byte block
+    printf("Allocated 64 bytes at %p\n", ptr2);
+
+    // Free memory
+    buddy_free(ptr1);
+    printf("Freed 32 bytes at %p\n", ptr1);
+
+    buddy_free(ptr2);
+    printf("Freed 64 bytes at %p\n", ptr2);
+
+    // Allocate again to test reuse
+    void* ptr3 = buddy_alloc(48);
+    printf("Allocated 48 bytes at %p\n", ptr3);
+
+    return 0;
+}
+
+============================================================================================================================
+
+
 ### Explanation of `buddy_alloc(128)` and `buddy_free()` in the Buddy Allocator
 
 To illustrate the buddy allocator in action with a 128-byte allocation (which corresponds to **order 7**, since \(1 \ll 7 = 128\) bytes), I'll walk through the process step-by-step using the same 1024-byte memory pool (order-10 max, base address `0x1000`) from our previous examples. I'll assume `MIN_ORDER = 4` (16 bytes) and an initially empty pool except for the full order-10 block in `free_lists[10]`.
