@@ -1,0 +1,34 @@
+1)Counter vs Timers
+2)PWM and ADC
+3)U-BOOT PIC vs PIE?
+4)in my arm64 soc we have 2 clusters and each cluster has 4 cores each and each core runs at 1.8GHz? and we have crystal oscillator running 
+at 33.3MHz? all peripherals derive the clock from this crystal oscialltor? how are these related?
+5)how a 2GHz CPU communicates with a 50MHz SPI controller, we must look at the "interconnect" logic that sits between them. 
+In an ARM SoC (like your QCS9100), this is handled by the AMBA Interconnect
+6)PTP/TSC timer usage? why these are used for synchronization system time ?How hardware timestamping is acheived using PTP timers?
+7)clocksource vs clockevent?
+8)tick_device, tick_sched, timekeeper, broadcast timer
+9)Debug:
+  Invasive->uses JTAG which halts the processor and examine the registers, memory.
+  Non-Invasive:Processor runs at full speed without being halted. This uses TRACE and collects the real time information(ETB:Embedded Trace buffer)
+
+=================================================================================================================================================
+U-BOOT topics:
+1)TEXT_BASE=0x80000000
+If U-Boot is loaded at 0x9000000 what happens?
+2)Do you know PIC Position Independent Code? How it works here?
+3) What is diff bw TEXT_BASE address and LOAD_ADDRESS?
+4)How the handoff params from TF-A are used by U-Boot? say from TF-A i need UART address and so how U-Boot collects it?
+5)what is diff bw EL3 and secure EL1?
+6)How USB enumeration happens in U-Boot?
+7)can you explain the flow from start.S what happens in start.S till C function calls?
+8) What is stack canary does?
+9) what is Stack protector does?
+10)what is board_init_f ? what is board_int_r? what are the calls triiger in board_init_f and board_init_r?
+11)Why we need relocation? can we disable relocation?
+12)MMC HS400 how read works? 
+13) How is the stack initialized in UBOOT? where is the stack init happens?
+14)QSPI what are the modes we have? explain? what is 1_1_4 proto and how it works?
+15) Can you explain the layers in UFS? What all the descriptors used in UFS like command/Transfer/ etc?
+16) How the scsi read ->UFS layer->UFS device? What are Inquiry command and how it is used?
+17) Does it support command Queuing? single command or multi commands?
